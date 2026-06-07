@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/useAuth";
 import {
+  emptyBackgroundRotationJobListResult,
   getBackgroundRotationJobs,
   listBackgroundRotationJobsDetailed,
   startBackgroundRotation,
@@ -399,17 +400,7 @@ export function Passwords() {
               },
               controller.signal,
             )
-          : {
-              jobs: [],
-              meta: {
-                requestedLimit: null,
-                appliedLimit: 0,
-                matchedCount: 0,
-                returnedCount: 0,
-                truncated: false,
-                defaultLimitApplied: true,
-              },
-            };
+          : emptyBackgroundRotationJobListResult();
 
       if (cancelled) {
         return;

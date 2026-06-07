@@ -61,6 +61,20 @@ export interface BackgroundRotationJobListResult {
   meta: BackgroundRotationJobListMeta;
 }
 
+export function emptyBackgroundRotationJobListResult(): BackgroundRotationJobListResult {
+  return {
+    jobs: [],
+    meta: {
+      requestedLimit: null,
+      appliedLimit: 0,
+      matchedCount: 0,
+      returnedCount: 0,
+      truncated: false,
+      defaultLimitApplied: true,
+    },
+  };
+}
+
 function serverError(status: number, detail: string): Error {
   return new Error("Server error " + status + (detail ? ": " + detail : ""));
 }
