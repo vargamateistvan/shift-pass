@@ -717,6 +717,24 @@ h2 {
   font-size: 0.8rem;
 }
 
+.rotate-stepper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.65rem;
+}
+
+.rotate-stepper .btn {
+  min-width: 4.5rem;
+}
+
+.rotate-stepper-index {
+  min-width: 6rem;
+  text-align: center;
+  font-size: 0.82rem;
+  color: var(--muted);
+}
+
 .rotate-log {
   list-style: none;
   margin: 0;

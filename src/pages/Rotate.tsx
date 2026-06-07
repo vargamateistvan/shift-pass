@@ -70,8 +70,9 @@ function RotateForm() {
   const [email, setEmail] = useState(searchParams.get("email") ?? "");
   const [status, setStatus] = useState<Status>("idle");
   const [log, setLog] = useState<LogLine[]>([]);
-  const [shot, setShot] = useState<string | null>(null);
   const [shots, setShots] = useState<string[]>([]);
+  const [shotIndex, setShotIndex] = useState(0);
+  const [backgroundShotIndex, setBackgroundShotIndex] = useState(0);
   const [result, setResult] = useState<{
     site: string;
     password: string;
@@ -149,8 +150,11 @@ function RotateForm() {
         });
         break;
       case "screenshot":
-        setShot(ev.dataUrl);
-        setShots((prev) => [...prev, ev.dataUrl]);
+        setShots((prev) => {
+          const next = [...prev, ev.dataUrl];
+          setShotIndex(next.length - 1);
+          return next;
+        });
         break;
       case "needs_human":
         append({ text: ev.message, tone: "warn" });
@@ -171,8 +175,8 @@ function RotateForm() {
     e.preventDefault();
     setStatus("running");
     setLog([]);
-    setShot(null);
     setShots([]);
+    setShotIndex(0);
     setResult(null);
     setCopied(false);
     const controller = new AbortController();
@@ -221,14 +225,31 @@ function RotateForm() {
   const backgroundFailed = backgroundJob?.status === "error";
   const backgroundStatus = backgroundJob?.status ?? "queued";
   const isBackgroundMode = Boolean(backgroundJobId);
-  const backgroundLatestShot =
-    backgroundJob && backgroundJob.screenshots.length > 0
-      ? backgroundJob.screenshots[backgroundJob.screenshots.length - 1]
+  const safeShotIndex =
+    shots.length > 0 ? Math.max(0, Math.min(shotIndex, shots.length - 1)) : 0;
+  const currentForegroundShot = shots.length > 0 ? shots[safeShotIndex] : null;
+  const backgroundShots = backgroundJob?.screenshots ?? [];
+  const safeBackgroundShotIndex =
+    backgroundShots.length > 0
+      ? Math.max(0, Math.min(backgroundShotIndex, backgroundShots.length - 1))
+      : 0;
+  const currentBackgroundShot =
+    backgroundShots.length > 0
+      ? backgroundShots[safeBackgroundShotIndex]
       : (backgroundJob?.latestScreenshot ?? null);
   const backgroundSourceLabel =
     backgroundSource === "tracked" || backgroundSource === "fallback"
       ? formatBackgroundSource(backgroundSource)
       : null;
+
+  const canPrevForeground = shots.length > 0 && safeShotIndex > 0;
+  const canNextForeground =
+    shots.length > 0 && safeShotIndex < shots.length - 1;
+  const canPrevBackground =
+    backgroundShots.length > 0 && safeBackgroundShotIndex > 0;
+  const canNextBackground =
+    backgroundShots.length > 0 &&
+    safeBackgroundShotIndex < backgroundShots.length - 1;
 
   return (
     <div className="page">
@@ -276,16 +297,53 @@ function RotateForm() {
                   </span>
                 </div>
               )}
-              {backgroundLatestShot && (
+              {currentBackgroundShot && (
                 <div className="rotate-screenshot rotate-background-preview">
                   <img
-                    src={backgroundLatestShot}
+                    src={currentBackgroundShot}
                     alt="Background agent browser view"
                   />
                 </div>
               )}
+              {backgroundShots.length > 0 && (
+                <div
+                  className="rotate-stepper"
+                  aria-label="Background screenshot stepper"
+                >
+                  <button
+                    type="button"
+                    className="btn btn-ghost"
+                    disabled={!canPrevBackground}
+                    onClick={() =>
+                      setBackgroundShotIndex(
+                        Math.max(0, safeBackgroundShotIndex - 1),
+                      )
+                    }
+                  >
+                    Prev
+                  </button>
+                  <span className="rotate-stepper-index">
+                    {safeBackgroundShotIndex + 1} / {backgroundShots.length}
+                  </span>
+                  <button
+                    type="button"
+                    className="btn btn-ghost"
+                    disabled={!canNextBackground}
+                    onClick={() =>
+                      setBackgroundShotIndex(
+                        Math.min(
+                          backgroundShots.length - 1,
+                          safeBackgroundShotIndex + 1,
+                        ),
+                      )
+                    }
+                  >
+                    Next
+                  </button>
+                </div>
+              )}
               <p className="muted rotate-frame-count">
-                Frames captured: {backgroundJob.screenshots.length}
+                Frames captured: {backgroundShots.length}
               </p>
               <ul className="rotate-log rotate-background-log">
                 {backgroundJob.recentEvents.map((event) => (
@@ -386,11 +444,41 @@ function RotateForm() {
             </div>
           )}
 
-          {(log.length > 0 || shot) && (
+          {(log.length > 0 || currentForegroundShot) && (
             <div className="rotate-monitor">
-              {shot && (
+              {currentForegroundShot && (
                 <div className="rotate-screenshot">
-                  <img src={shot} alt="Agent browser view" />
+                  <img src={currentForegroundShot} alt="Agent browser view" />
+                </div>
+              )}
+              {shots.length > 0 && (
+                <div
+                  className="rotate-stepper"
+                  aria-label="Foreground screenshot stepper"
+                >
+                  <button
+                    type="button"
+                    className="btn btn-ghost"
+                    disabled={!canPrevForeground}
+                    onClick={() => setShotIndex(Math.max(0, safeShotIndex - 1))}
+                  >
+                    Prev
+                  </button>
+                  <span className="rotate-stepper-index">
+                    {safeShotIndex + 1} / {shots.length}
+                  </span>
+                  <button
+                    type="button"
+                    className="btn btn-ghost"
+                    disabled={!canNextForeground}
+                    onClick={() =>
+                      setShotIndex(
+                        Math.min(shots.length - 1, safeShotIndex + 1),
+                      )
+                    }
+                  >
+                    Next
+                  </button>
                 </div>
               )}
               <p className="muted rotate-frame-count">
