@@ -16,6 +16,8 @@ export type ProgressPhase =
   | "needs_human"
   | "error";
 
+export type BackgroundJobStatus = "queued" | ProgressPhase;
+
 export type ProgressEvent =
   | { type: "phase"; phase: ProgressPhase; message: string }
   | { type: "step"; index: number; action: string; detail?: string }

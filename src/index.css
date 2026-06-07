@@ -594,6 +594,35 @@ h2 {
   line-height: 1.5;
 }
 
+.rotate-background {
+  display: grid;
+  gap: 0.85rem;
+  margin-bottom: 1.25rem;
+  padding: 1.1rem 1.2rem;
+  background:
+    linear-gradient(180deg, rgba(66, 133, 244, 0.08), transparent 65%),
+    var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+}
+
+.rotate-background-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.rotate-background-head h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.rotate-background-log {
+  margin-top: 0.1rem;
+}
+
 .rotate-result {
   margin-top: 1.25rem;
   padding: 1.25rem;
@@ -887,6 +916,25 @@ h2 {
 }
 
 .vault-needs_human {
+  color: var(--error);
+}
+
+.vault-queued,
+.vault-starting,
+.vault-navigating,
+.vault-requesting_reset,
+.vault-awaiting_email,
+.vault-reading_email,
+.vault-setting_password,
+.vault-saving {
+  color: var(--primary);
+}
+
+.vault-done {
+  color: var(--success);
+}
+
+.vault-error {
   color: var(--error);
 }
 

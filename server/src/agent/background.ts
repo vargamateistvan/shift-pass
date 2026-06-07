@@ -8,16 +8,13 @@ import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { config } from "../config.js";
 import { log } from "../lib/logger.js";
-import type { ProgressEvent, RotateRequest } from "../types.js";
+import type {
+  BackgroundJobStatus,
+  ProgressEvent,
+  RotateRequest,
+} from "../types.js";
 import type { ProgressStream } from "../lib/sse.js";
 import { runRotation } from "./orchestrator.js";
-
-export type BackgroundJobStatus =
-  | "queued"
-  | "running"
-  | "needs_human"
-  | "done"
-  | "error";
 
 export interface BackgroundJobResult {
   site: string;
@@ -103,7 +100,16 @@ function reviveJob(job: BackgroundJobRecord): BackgroundJobRecord {
     error: job.error ?? null,
   };
 
-  if (normalized.status === "queued" || normalized.status === "running") {
+  if (
+    normalized.status === "queued" ||
+    normalized.status === "starting" ||
+    normalized.status === "navigating" ||
+    normalized.status === "requesting_reset" ||
+    normalized.status === "awaiting_email" ||
+    normalized.status === "reading_email" ||
+    normalized.status === "setting_password" ||
+    normalized.status === "saving"
+  ) {
     normalized.status = "error";
     normalized.message =
       "Server restarted before the background rotation completed. Start a new run.";
@@ -155,6 +161,7 @@ class BackgroundJobStream implements ProgressStream {
 
     switch (event.type) {
       case "phase":
+        job.status = event.phase;
         job.message = event.message;
         job.recentEvents.push({ type: "phase", text: event.message });
         break;
@@ -236,7 +243,7 @@ export function startBackgroundRotation(
 
   const started = jobs.get(id);
   if (started) {
-    started.status = "running";
+    started.status = "starting";
     started.message = "Running in the background";
     started.updatedAt = now();
     persistJobs();

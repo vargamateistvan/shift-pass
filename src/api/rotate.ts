@@ -16,7 +16,18 @@ export interface BackgroundRotationJob {
   id: string;
   url: string;
   email: string;
-  status: "queued" | "running" | "needs_human" | "done" | "error";
+  status:
+    | "queued"
+    | "starting"
+    | "navigating"
+    | "requesting_reset"
+    | "awaiting_email"
+    | "reading_email"
+    | "setting_password"
+    | "saving"
+    | "done"
+    | "needs_human"
+    | "error";
   message: string;
   createdAt: string;
   updatedAt: string;

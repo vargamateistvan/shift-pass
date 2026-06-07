@@ -16,6 +16,35 @@ interface LogLine {
   tone: "info" | "step" | "warn" | "error";
 }
 
+function formatBackgroundStatus(
+  status: BackgroundRotationJob["status"],
+): string {
+  switch (status) {
+    case "queued":
+      return "Queued";
+    case "starting":
+      return "Starting";
+    case "navigating":
+      return "Opening site";
+    case "requesting_reset":
+      return "Requesting reset";
+    case "awaiting_email":
+      return "Waiting for email";
+    case "reading_email":
+      return "Reading email";
+    case "setting_password":
+      return "Setting password";
+    case "saving":
+      return "Saving";
+    case "done":
+      return "Done";
+    case "needs_human":
+      return "Needs human";
+    case "error":
+      return "Error";
+  }
+}
+
 function formatStep(action: string, detail?: string): string {
   return detail ? action + ": " + detail : action;
 }
@@ -195,7 +224,7 @@ function RotateForm() {
           <div className="rotate-background-head">
             <h3>Background job</h3>
             <span className={`vault-status vault-${backgroundStatus}`}>
-              {backgroundStatus}
+              {formatBackgroundStatus(backgroundStatus)}
             </span>
           </div>
           {backgroundError && <p className="error">{backgroundError}</p>}
