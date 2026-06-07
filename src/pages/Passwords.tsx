@@ -154,6 +154,50 @@ function trackActiveJobs(
   );
 }
 
+function fallbackGroupKey(
+  entry: Pick<GooglePasswordEntry, "url" | "username">,
+) {
+  return `${hostFromUrl(entry.url)}::${entry.username}`;
+}
+
+function assignFallbackJobs(
+  entries: GooglePasswordEntry[],
+  jobs: BackgroundRotationJob[],
+): Record<string, BackgroundRotationJob> {
+  const availableEntries = new Map<string, GooglePasswordEntry[]>();
+
+  for (const entry of entries) {
+    const key = fallbackGroupKey(entry);
+    const group = availableEntries.get(key);
+    if (group) {
+      group.push(entry);
+    } else {
+      availableEntries.set(key, [entry]);
+    }
+  }
+
+  const assignments: Record<string, BackgroundRotationJob> = {};
+
+  for (const job of jobs) {
+    const key = fallbackGroupKey({ url: job.url, username: job.email });
+    const group = availableEntries.get(key);
+    if (!group || group.length === 0) {
+      continue;
+    }
+
+    const exactUrlIndex = group.findIndex((entry) => entry.url === job.url);
+    const matchIndex = exactUrlIndex >= 0 ? exactUrlIndex : 0;
+    const [match] = group.splice(matchIndex, 1);
+    assignments[entryKey(match)] = job;
+
+    if (group.length === 0) {
+      availableEntries.delete(key);
+    }
+  }
+
+  return assignments;
+}
+
 export function Passwords() {
   const navigate = useNavigate();
   const { getToken } = useAuth();
@@ -289,25 +333,7 @@ export function Passwords() {
         return;
       }
 
-      const fallbackJobs = Object.fromEntries(
-        jobs
-          .map((job) => {
-            const match = unresolvedEntries.find(
-              (entry) =>
-                hostFromUrl(entry.url) === hostFromUrl(job.url) &&
-                entry.username === job.email,
-            );
-            if (!match) {
-              return null;
-            }
-
-            return [entryKey(match), job] as const;
-          })
-          .filter(
-            (result): result is readonly [string, BackgroundRotationJob] =>
-              Boolean(result),
-          ),
-      );
+      const fallbackJobs = assignFallbackJobs(unresolvedEntries, jobs);
       const nextJobs = {
         ...fallbackJobs,
         ...trackedJobsByKey,
