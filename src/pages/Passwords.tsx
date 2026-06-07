@@ -3,7 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/useAuth";
 import {
   getBackgroundRotationJobs,
-  listBackgroundRotationJobs,
+  listBackgroundRotationJobsDetailed,
   startBackgroundRotation,
   type BackgroundRotationJob,
 } from "../api/rotate";
@@ -233,6 +233,9 @@ export function Passwords() {
   );
   const rowJobsRef = useRef(rowJobs);
   const trackedJobFailureCountsRef = useRef<Record<string, number>>({});
+  const [fallbackDiscoveryWarning, setFallbackDiscoveryWarning] = useState<
+    string | null
+  >(null);
   const [visiblePasswords, setVisiblePasswords] = useState<
     Record<string, boolean>
   >({});
@@ -276,6 +279,7 @@ export function Passwords() {
         if (!cancelled) {
           setRowJobs({});
           setTrackedJobs({});
+          setFallbackDiscoveryWarning(null);
         }
         return;
       }
@@ -384,7 +388,7 @@ export function Passwords() {
         }
       }
 
-      const jobs = await listBackgroundRotationJobs(
+      const fallbackResult = await listBackgroundRotationJobsDetailed(
         {
           activeOnly: true,
           hosts: [...entryGroups.keys()],
@@ -396,7 +400,16 @@ export function Passwords() {
         return;
       }
 
-      const fallbackJobs = assignFallbackJobs(unresolvedEntries, jobs);
+      setFallbackDiscoveryWarning(
+        fallbackResult.meta.truncated
+          ? `Showing the most recent ${fallbackResult.meta.returnedCount} active jobs out of ${fallbackResult.meta.matchedCount} matches. Some background runs may be omitted until older jobs finish or disappear.`
+          : null,
+      );
+
+      const fallbackJobs = assignFallbackJobs(
+        unresolvedEntries,
+        fallbackResult.jobs,
+      );
       const nextJobs = {
         ...fallbackJobs,
         ...trackedJobsByKey,
@@ -567,6 +580,10 @@ export function Passwords() {
 
       {backgroundNotice && (
         <p className={backgroundNoticeTone}>{backgroundNotice}</p>
+      )}
+
+      {fallbackDiscoveryWarning && (
+        <p className="vault-list-warning">{fallbackDiscoveryWarning}</p>
       )}
 
       {error && <p className="error">{error}</p>}
