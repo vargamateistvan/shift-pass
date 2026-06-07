@@ -1,7 +1,7 @@
-import { useCallback, useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
-import { useAuth } from '../auth/useAuth';
-import { listMessages, type MessageSummary } from '../api/gmail';
+import { useCallback, useEffect, useState } from "react";
+import { Link } from "react-router-dom";
+import { useAuth } from "../auth/useAuth";
+import { listMessages, type MessageSummary } from "../api/gmail";
 
 export function Inbox() {
   const { getToken } = useAuth();
@@ -15,7 +15,7 @@ export function Inbox() {
     try {
       setMessages(await listMessages(getToken, 20));
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to load messages');
+      setError(e instanceof Error ? e.message : "Failed to load messages");
     } finally {
       setLoading(false);
     }
@@ -29,7 +29,7 @@ export function Inbox() {
         if (active) setMessages(msgs);
       } catch (e) {
         if (active)
-          setError(e instanceof Error ? e.message : 'Failed to load messages');
+          setError(e instanceof Error ? e.message : "Failed to load messages");
       } finally {
         if (active) setLoading(false);
       }
@@ -60,7 +60,7 @@ export function Inbox() {
             <Link to={`/app/message/${m.id}`} className="message-row">
               <span className="message-from">{m.from}</span>
               <span className="message-subject">
-                {m.subject || '(no subject)'}
+                {m.subject || "(no subject)"}
               </span>
               <span className="message-snippet">{m.snippet}</span>
             </Link>

@@ -1,5 +1,5 @@
-import type { Response } from 'express';
-import type { ProgressEvent } from '../types.js';
+import type { Response } from "express";
+import type { ProgressEvent } from "../types.js";
 
 /** Minimal Server-Sent-Events writer for streaming agent progress. */
 export class SseStream {
@@ -7,13 +7,13 @@ export class SseStream {
 
   constructor(private readonly res: Response) {
     res.writeHead(200, {
-      'Content-Type': 'text/event-stream',
-      'Cache-Control': 'no-cache, no-transform',
-      Connection: 'keep-alive',
-      'X-Accel-Buffering': 'no',
+      "Content-Type": "text/event-stream",
+      "Cache-Control": "no-cache, no-transform",
+      Connection: "keep-alive",
+      "X-Accel-Buffering": "no",
     });
-    res.write('retry: 2000\n\n');
-    res.on('close', () => {
+    res.write("retry: 2000\n\n");
+    res.on("close", () => {
       this.closed = true;
     });
   }

@@ -1,9 +1,9 @@
-import { randomInt } from 'node:crypto';
+import { randomInt } from "node:crypto";
 
-const LOWER = 'abcdefghijkmnpqrstuvwxyz';
-const UPPER = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
-const DIGITS = '23456789';
-const SYMBOLS = '!@#$%^&*-_=+';
+const LOWER = "abcdefghijkmnpqrstuvwxyz";
+const UPPER = "ABCDEFGHJKLMNPQRSTUVWXYZ";
+const DIGITS = "23456789";
+const SYMBOLS = "!@#$%^&*-_=+";
 
 function pick(set: string): string {
   return set[randomInt(set.length)];
@@ -19,5 +19,5 @@ export function generatePassword(length = 20): string {
     const j = randomInt(i + 1);
     [chars[i], chars[j]] = [chars[j], chars[i]];
   }
-  return chars.join('');
+  return chars.join("");
 }

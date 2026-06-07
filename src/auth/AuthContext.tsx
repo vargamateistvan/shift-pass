@@ -1,17 +1,11 @@
-import {
-  useCallback,
-  useMemo,
-  useRef,
-  useState,
-  type ReactNode,
-} from 'react';
-import { useGoogleLogin, googleLogout } from '@react-oauth/google';
+import { useCallback, useMemo, useRef, useState, type ReactNode } from "react";
+import { useGoogleLogin, googleLogout } from "@react-oauth/google";
 import {
   AuthContext,
   GMAIL_SCOPES,
   type AuthContextValue,
   type UserProfile,
-} from './context';
+} from "./context";
 
 interface TokenState {
   token: string;
@@ -30,16 +24,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const fetchProfile = useCallback(async (token: string) => {
     try {
-      const res = await fetch(
-        'https://www.googleapis.com/oauth2/v3/userinfo',
-        { headers: { Authorization: `Bearer ${token}` } },
-      );
+      const res = await fetch("https://www.googleapis.com/oauth2/v3/userinfo", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
       if (!res.ok) return;
       const data = await res.json();
       setUser({
         email: data.email,
         name: data.name ?? data.email,
-        picture: data.picture ?? '',
+        picture: data.picture ?? "",
       });
     } catch {
       /* non-fatal: profile is cosmetic */
@@ -62,7 +55,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setLoading(false);
       const message =
         (err as { error_description?: string }).error_description ??
-        'Google sign-in failed';
+        "Google sign-in failed";
       setError(message);
       pendingReject.current?.(new Error(message));
       pendingResolve.current = null;

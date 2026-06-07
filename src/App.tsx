@@ -1,11 +1,11 @@
-import { Routes, Route } from 'react-router-dom';
-import { Header } from './components/Header';
-import { ProtectedRoute } from './components/ProtectedRoute';
-import { Landing } from './pages/Landing';
-import { Inbox } from './pages/Inbox';
-import { Message } from './pages/Message';
-import { Compose } from './pages/Compose';
-import { Rotate } from './pages/Rotate';
+import { Routes, Route } from "react-router-dom";
+import { Header } from "./components/Header";
+import { ProtectedRoute } from "./components/ProtectedRoute";
+import { Landing } from "./pages/Landing";
+import { Inbox } from "./pages/Inbox";
+import { Message } from "./pages/Message";
+import { Compose } from "./pages/Compose";
+import { Rotate } from "./pages/Rotate";
 
 export default function App() {
   return (

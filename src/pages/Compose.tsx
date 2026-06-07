@@ -1,30 +1,30 @@
-import { useState, type FormEvent } from 'react';
-import { useAuth } from '../auth/useAuth';
-import { sendMessage } from '../api/gmail';
+import { useState, type FormEvent } from "react";
+import { useAuth } from "../auth/useAuth";
+import { sendMessage } from "../api/gmail";
 
-type Status = 'idle' | 'sending' | 'sent' | 'error';
+type Status = "idle" | "sending" | "sent" | "error";
 
 export function Compose() {
   const { getToken } = useAuth();
-  const [to, setTo] = useState('');
-  const [subject, setSubject] = useState('');
-  const [body, setBody] = useState('');
-  const [status, setStatus] = useState<Status>('idle');
+  const [to, setTo] = useState("");
+  const [subject, setSubject] = useState("");
+  const [body, setBody] = useState("");
+  const [status, setStatus] = useState<Status>("idle");
   const [error, setError] = useState<string | null>(null);
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    setStatus('sending');
+    setStatus("sending");
     setError(null);
     try {
       await sendMessage(getToken, { to, subject, body });
-      setStatus('sent');
-      setTo('');
-      setSubject('');
-      setBody('');
+      setStatus("sent");
+      setTo("");
+      setSubject("");
+      setBody("");
     } catch (err) {
-      setStatus('error');
-      setError(err instanceof Error ? err.message : 'Failed to send');
+      setStatus("error");
+      setError(err instanceof Error ? err.message : "Failed to send");
     }
   };
 
@@ -65,12 +65,12 @@ export function Compose() {
           <button
             type="submit"
             className="btn btn-primary"
-            disabled={status === 'sending'}
+            disabled={status === "sending"}
           >
-            {status === 'sending' ? 'Sending…' : 'Send'}
+            {status === "sending" ? "Sending…" : "Send"}
           </button>
-          {status === 'sent' && <span className="success">Sent ✓</span>}
-          {status === 'error' && error && (
+          {status === "sent" && <span className="success">Sent ✓</span>}
+          {status === "error" && error && (
             <span className="error">{error}</span>
           )}
         </div>

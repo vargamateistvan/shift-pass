@@ -1,6 +1,6 @@
-import { Link, NavLink } from 'react-router-dom';
-import { useAuth } from '../auth/useAuth';
-import { Logo } from './Logo';
+import { Link, NavLink } from "react-router-dom";
+import { useAuth } from "../auth/useAuth";
+import { Logo } from "./Logo";
 
 export function Header() {
   const { isAuthenticated, user, signOut } = useAuth();
@@ -24,9 +24,7 @@ export function Header() {
 
       {isAuthenticated && user && (
         <div className="user">
-          {user.picture && (
-            <img src={user.picture} alt="" className="avatar" />
-          )}
+          {user.picture && <img src={user.picture} alt="" className="avatar" />}
           <span className="user-email">{user.email}</span>
           <button className="btn btn-ghost" onClick={signOut}>
             Sign out

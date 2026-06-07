@@ -1,13 +1,13 @@
-import { Navigate } from 'react-router-dom';
-import { useAuth } from '../auth/useAuth';
-import { SignInButton } from '../components/SignInButton';
-import { Logo } from '../components/Logo';
+import { Navigate } from "react-router-dom";
+import { useAuth } from "../auth/useAuth";
+import { SignInButton } from "../components/SignInButton";
+import { Logo } from "../components/Logo";
 
 const features = [
-  { icon: '🔐', text: 'OAuth 2.0 — no password handling' },
-  { icon: '📥', text: 'Read your latest messages' },
-  { icon: '✉️', text: 'Compose and send email' },
-  { icon: '🧹', text: 'Tokens in memory, revoked on sign-out' },
+  { icon: "🔐", text: "OAuth 2.0 — no password handling" },
+  { icon: "📥", text: "Read your latest messages" },
+  { icon: "✉️", text: "Compose and send email" },
+  { icon: "🧹", text: "Tokens in memory, revoked on sign-out" },
 ];
 
 export function Landing() {

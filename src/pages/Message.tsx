@@ -1,7 +1,7 @@
-import { useEffect, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
-import { useAuth } from '../auth/useAuth';
-import { getMessage, type MessageDetail } from '../api/gmail';
+import { useEffect, useState } from "react";
+import { Link, useParams } from "react-router-dom";
+import { useAuth } from "../auth/useAuth";
+import { getMessage, type MessageDetail } from "../api/gmail";
 
 export function Message() {
   const { id } = useParams<{ id: string }>();
@@ -19,7 +19,7 @@ export function Message() {
         if (active) setMessage(msg);
       } catch (e) {
         if (active)
-          setError(e instanceof Error ? e.message : 'Failed to load message');
+          setError(e instanceof Error ? e.message : "Failed to load message");
       } finally {
         if (active) setLoading(false);
       }
@@ -40,7 +40,7 @@ export function Message() {
 
       {message && (
         <article className="message-detail">
-          <h2>{message.subject || '(no subject)'}</h2>
+          <h2>{message.subject || "(no subject)"}</h2>
           <div className="message-meta">
             <div>
               <strong>From:</strong> {message.from}

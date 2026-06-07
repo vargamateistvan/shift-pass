@@ -1,12 +1,12 @@
-import { createContext } from 'react';
+import { createContext } from "react";
 
 export const GMAIL_SCOPES = [
-  'openid',
-  'email',
-  'profile',
-  'https://www.googleapis.com/auth/gmail.readonly',
-  'https://www.googleapis.com/auth/gmail.send',
-].join(' ');
+  "openid",
+  "email",
+  "profile",
+  "https://www.googleapis.com/auth/gmail.readonly",
+  "https://www.googleapis.com/auth/gmail.send",
+].join(" ");
 
 export interface UserProfile {
   email: string;

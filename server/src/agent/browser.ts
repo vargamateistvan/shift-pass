@@ -1,16 +1,21 @@
-import { chromium, type Browser, type BrowserContext, type Page } from 'playwright';
+import {
+  chromium,
+  type Browser,
+  type BrowserContext,
+  type Page,
+} from "playwright";
 
 /** Fixed viewport so Claude computer-use pixel coordinates stay consistent. */
 export const VIEWPORT = { width: 1280, height: 800 };
 
 const KEY_MAP: Record<string, string> = {
-  Return: 'Enter',
-  Enter: 'Enter',
-  Tab: 'Tab',
-  Escape: 'Escape',
-  Backspace: 'Backspace',
-  Delete: 'Delete',
-  space: ' ',
+  Return: "Enter",
+  Enter: "Enter",
+  Tab: "Tab",
+  Escape: "Escape",
+  Backspace: "Backspace",
+  Delete: "Delete",
+  space: " ",
 };
 
 export type InteractiveEl = {
@@ -31,14 +36,17 @@ export class BrowserSession {
       viewport: VIEWPORT,
       deviceScaleFactor: 1,
       userAgent:
-        'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 ' +
-        '(KHTML, like Gecko) Chrome/120.0 Safari/537.36',
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 " +
+        "(KHTML, like Gecko) Chrome/120.0 Safari/537.36",
     });
     this.page = await this.context.newPage();
   }
 
   async navigate(url: string): Promise<void> {
-    await this.page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 });
+    await this.page.goto(url, {
+      waitUntil: "domcontentloaded",
+      timeout: 30000,
+    });
     await this.settle();
   }
 
@@ -71,8 +79,8 @@ export class BrowserSession {
   }
 
   async screenshotBase64(): Promise<string> {
-    const buf = await this.page.screenshot({ type: 'png' });
-    return buf.toString('base64');
+    const buf = await this.page.screenshot({ type: "png" });
+    return buf.toString("base64");
   }
 
   /** Compact list of interactive elements to give the model textual grounding. */
@@ -87,13 +95,13 @@ export class BrowserSession {
         if (rect.width === 0 || rect.height === 0) return;
         const he = el as HTMLElement;
         const label =
-          he.getAttribute('aria-label') ||
-          he.getAttribute('placeholder') ||
-          he.getAttribute('name') ||
-          (he.innerText || '').trim().slice(0, 60);
+          he.getAttribute("aria-label") ||
+          he.getAttribute("placeholder") ||
+          he.getAttribute("name") ||
+          (he.innerText || "").trim().slice(0, 60);
         out.push({
           tag: el.tagName.toLowerCase(),
-          type: el.getAttribute('type') ?? undefined,
+          type: el.getAttribute("type") ?? undefined,
           text: label,
         });
       });
@@ -104,7 +112,7 @@ export class BrowserSession {
   /** Best-effort wait for navigation/network to quiesce. */
   private async settle(): Promise<void> {
     try {
-      await this.page.waitForLoadState('networkidle', { timeout: 4000 });
+      await this.page.waitForLoadState("networkidle", { timeout: 4000 });
     } catch {
       /* networkidle is best-effort; ignore timeouts */
     }

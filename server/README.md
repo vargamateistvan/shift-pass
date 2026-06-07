@@ -19,14 +19,14 @@ cp .env.example .env   # then fill in the values below
 
 Edit `.env`:
 
-| Var | Purpose |
-|-----|---------|
-| `ANTHROPIC_API_KEY` | Required. Powers the computer-use agent. |
-| `ANTHROPIC_MODEL` | Claude model id (default `claude-sonnet-4-5`). |
-| `VAULT_KEY` | 64 hex chars (32 bytes) for AES-256-GCM. Generate below. |
-| `ALLOWED_DOMAINS` | Comma-separated allowlist. Empty = allow any. |
-| `DRY_RUN` | `true` (default) walks the flow but does **not** submit the new password. |
-| `MAX_AGENT_STEPS` | Per-goal step cap (default 40). |
+| Var                 | Purpose                                                                   |
+| ------------------- | ------------------------------------------------------------------------- |
+| `ANTHROPIC_API_KEY` | Required. Powers the computer-use agent.                                  |
+| `ANTHROPIC_MODEL`   | Claude model id (default `claude-sonnet-4-5`).                            |
+| `VAULT_KEY`         | 64 hex chars (32 bytes) for AES-256-GCM. Generate below.                  |
+| `ALLOWED_DOMAINS`   | Comma-separated allowlist. Empty = allow any.                             |
+| `DRY_RUN`           | `true` (default) walks the flow but does **not** submit the new password. |
+| `MAX_AGENT_STEPS`   | Per-goal step cap (default 40).                                           |
 
 Generate a vault key:
 
