@@ -78,6 +78,7 @@ function encrypt(records: BackgroundJobRecord[]): EncFile {
 export interface BackgroundJobFilters {
   email?: string;
   host?: string;
+  hosts?: string[];
   url?: string;
   status?: BackgroundJobStatus;
   activeOnly?: boolean;
@@ -308,6 +309,13 @@ export function getBackgroundRotations(
 export function listBackgroundRotations(
   filters: BackgroundJobFilters = {},
 ): BackgroundJobSnapshot[] {
+  const normalizedHosts = new Set(
+    (filters.hosts ?? []).map((host) => host.toLowerCase()),
+  );
+  if (filters.host) {
+    normalizedHosts.add(filters.host.toLowerCase());
+  }
+
   const limit =
     typeof filters.limit === "number" && filters.limit > 0
       ? filters.limit
@@ -319,7 +327,10 @@ export function listBackgroundRotations(
         return false;
       }
 
-      if (filters.host && hostFromUrl(job.url) !== filters.host.toLowerCase()) {
+      if (
+        normalizedHosts.size > 0 &&
+        !normalizedHosts.has(hostFromUrl(job.url))
+      ) {
         return false;
       }
 

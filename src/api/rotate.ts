@@ -40,6 +40,7 @@ export interface BackgroundRotationJob {
 export interface BackgroundRotationJobFilters {
   email?: string;
   host?: string;
+  hosts?: string[];
   url?: string;
   status?: BackgroundRotationJob["status"];
   activeOnly?: boolean;
@@ -181,6 +182,12 @@ export async function listBackgroundRotationJobs(
 
   if (filters.host) {
     params.set("host", filters.host);
+  }
+
+  for (const host of filters.hosts ?? []) {
+    if (host) {
+      params.append("host", host);
+    }
   }
 
   if (filters.url) {

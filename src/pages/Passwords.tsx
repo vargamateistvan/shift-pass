@@ -384,20 +384,14 @@ export function Passwords() {
         }
       }
 
-      const jobGroups = await Promise.all(
-        [...entryGroups.entries()].map(async ([host, hostEntries]) =>
-          listBackgroundRotationJobs(
-            {
-              activeOnly: true,
-              host,
-              limit: Math.max(hostEntries.length * 3, 10),
-            },
-            controller.signal,
-          ),
-        ),
+      const jobs = await listBackgroundRotationJobs(
+        {
+          activeOnly: true,
+          hosts: [...entryGroups.keys()],
+          limit: Math.max(unresolvedEntries.length * 3, 10),
+        },
+        controller.signal,
       );
-
-      const jobs = jobGroups.flat();
 
       if (cancelled) {
         return;

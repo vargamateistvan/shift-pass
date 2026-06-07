@@ -59,6 +59,13 @@ rotateRouter.get("/rotate/background", (req, res) => {
   const email =
     typeof req.query.email === "string" ? req.query.email : undefined;
   const host = typeof req.query.host === "string" ? req.query.host : undefined;
+  const hosts = Array.isArray(req.query.host)
+    ? req.query.host.filter(
+        (value): value is string => typeof value === "string",
+      )
+    : host
+      ? [host]
+      : [];
   const url = typeof req.query.url === "string" ? req.query.url : undefined;
   const status =
     typeof req.query.status === "string"
@@ -71,6 +78,7 @@ rotateRouter.get("/rotate/background", (req, res) => {
   const jobs = listBackgroundRotations({
     email,
     host,
+    hosts,
     url,
     status,
     activeOnly,
