@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import type * as React from "react";
-import { useLocation, useSearchParams } from "react-router-dom";
+import { Link, useLocation, useSearchParams } from "react-router-dom";
 import { useAuth } from "../auth/useAuth";
 import {
   getBackgroundRotationJob,
@@ -226,6 +226,11 @@ function RotateForm() {
   return (
     <div className="page">
       <div className="page-head">
+        {isBackgroundMode && (
+          <Link to="/app/passwords" className="rotate-back-link">
+            Back to Password page
+          </Link>
+        )}
         <h2>Rotate password</h2>
       </div>
       <p className="muted rotate-intro">

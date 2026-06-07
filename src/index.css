@@ -627,6 +627,17 @@ h2 {
   margin-top: 0;
 }
 
+.rotate-back-link {
+  color: var(--muted);
+  font-size: 0.84rem;
+  text-decoration: none;
+}
+
+.rotate-back-link:hover {
+  color: var(--primary);
+  text-decoration: underline;
+}
+
 .rotate-result {
   margin-top: 1.25rem;
   padding: 1.25rem;

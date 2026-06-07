@@ -71,6 +71,9 @@ Google Password Manager CSV rows.
   id, which is the most precise recovery path.
 - `Matched via fallback`: the row was recovered by matching an active job on
   normalized host plus username/email because no saved job id could be reused.
+- If you open the Rotate monitor from a Password row, the monitor shows the
+  same provenance label so you can tell whether that view came from exact job-id
+  recovery or fallback matching.
 - If a row does not reconnect immediately after refresh, the frontend may still
   be inside the stale-id grace window before it drops an invalid saved mapping.
 - If you see the truncated-discovery warning, the server returned only the most
