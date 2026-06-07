@@ -2,14 +2,23 @@
   "name": "shift-pass",
   "private": true,
   "version": "0.0.0",
+  "packageManager": "yarn@1.22.22",
   "type": "module",
+  "workspaces": [
+    ".",
+    "server"
+  ],
   "scripts": {
     "dev": "vite",
+    "dev:all": "turbo run dev --parallel",
     "build": "tsc -b && vite build && cp dist/index.html dist/404.html",
+    "build:all": "turbo run build",
     "lint": "eslint .",
+    "lint:all": "turbo run lint",
     "preview": "vite preview",
     "server": "yarn --cwd server dev",
-    "server:install": "yarn --cwd server install"
+    "server:install": "yarn --cwd server install",
+    "vercel-build": "turbo run build --filter=shift-pass"
   },
   "dependencies": {
     "@react-oauth/google": "^0.13.5",
@@ -29,6 +38,7 @@
     "globals": "^17.6.0",
     "typescript": "~6.0.2",
     "typescript-eslint": "^8.59.2",
+    "turbo": "^2.6.1",
     "vite": "^8.0.12"
   }
 }

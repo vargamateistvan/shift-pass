@@ -87,10 +87,26 @@ Open http://localhost:5173 and click **Sign in with Google**.
 ## Scripts
 
 - `yarn dev` — start the Vite dev server
+- `yarn dev:all` — run frontend + backend dev scripts via Turborepo
 - `yarn build` — type-check, build for production, and emit a `404.html` SPA fallback
+- `yarn build:all` — build all workspaces via Turborepo
 - `yarn preview` — preview the production build
 - `yarn lint` — run ESLint
+- `yarn lint:all` — lint all workspaces that expose a lint script
 - `yarn server` — start the auto-rotate backend (see `server/README.md`)
+
+## Deployment (Vercel)
+
+This repo now includes `vercel.json` and Turborepo config so Vercel can deploy
+the frontend from the repo root.
+
+- Build command: `yarn vercel-build` (runs `turbo` with `--filter=shift-pass`)
+- Output directory: `dist`
+- Server package install is safe on Vercel: Playwright browser download is
+  skipped when `VERCEL` is set.
+
+The backend (`server/`) is still intended for a long-running host because it
+uses Express + Playwright + SSE and does not fit typical serverless limits.
 
 ## Deployment (GitHub Pages)
 
