@@ -1,4 +1,5 @@
 import { useRef, useState, type FormEvent } from "react";
+import { useLocation, useSearchParams } from "react-router-dom";
 import { useAuth } from "../auth/useAuth";
 import { streamRotation, type RotateProgress } from "../api/rotate";
 
@@ -10,9 +11,16 @@ interface LogLine {
 }
 
 export function Rotate() {
+  const location = useLocation();
+
+  return <RotateForm key={location.search} />;
+}
+
+function RotateForm() {
   const { getToken } = useAuth();
-  const [url, setUrl] = useState("");
-  const [email, setEmail] = useState("");
+  const [searchParams] = useSearchParams();
+  const [url, setUrl] = useState(searchParams.get("url") ?? "");
+  const [email, setEmail] = useState(searchParams.get("email") ?? "");
   const [status, setStatus] = useState<Status>("idle");
   const [log, setLog] = useState<LogLine[]>([]);
   const [shot, setShot] = useState<string | null>(null);

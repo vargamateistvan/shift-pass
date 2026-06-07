@@ -814,6 +814,18 @@ h2 {
   min-width: 0;
 }
 
+.vault-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.vault-action {
+  white-space: nowrap;
+}
+
 .vault-password-field {
   display: inline-flex;
   align-items: center;
@@ -935,6 +947,11 @@ h2 {
   .vault-meta {
     grid-template-columns: 1fr;
     align-items: flex-start;
+  }
+
+  .vault-actions {
+    width: 100%;
+    justify-content: flex-start;
   }
 
   .vault-link {

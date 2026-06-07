@@ -1,4 +1,5 @@
 import { useMemo, useState, type ChangeEvent } from "react";
+import { Link } from "react-router-dom";
 import { type GooglePasswordEntry } from "../passwords/context";
 import { useLoadedCsv } from "../passwords/useLoadedCsv";
 
@@ -65,6 +66,21 @@ function hostFromUrl(url: string): string {
   } catch {
     return url;
   }
+}
+
+function buildRotatePath(entry: GooglePasswordEntry): string {
+  const params = new URLSearchParams();
+
+  if (entry.url) {
+    params.set("url", entry.url);
+  }
+
+  if (entry.username) {
+    params.set("email", entry.username);
+  }
+
+  const query = params.toString();
+  return query ? `/app/rotate?${query}` : "/app/rotate";
 }
 
 export function Passwords() {
@@ -205,6 +221,22 @@ export function Passwords() {
                 >
                   {entry.url}
                 </a>
+                <div className="vault-actions">
+                  <a
+                    href={entry.url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="btn btn-ghost vault-action"
+                  >
+                    Open site
+                  </a>
+                  <Link
+                    to={buildRotatePath(entry)}
+                    className="btn btn-primary vault-action"
+                  >
+                    Reset password
+                  </Link>
+                </div>
                 <div className="vault-password-field">
                   <code>
                     {visiblePasswords[`${entry.url}-${entry.username}-${idx}`]
