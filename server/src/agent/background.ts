@@ -48,6 +48,8 @@ type EncFile = { v: 1; iv: string; tag: string; data: string };
 const JOBS_PATH = fileURLToPath(
   new URL("../../background-jobs.json", import.meta.url),
 );
+const MAX_BACKGROUND_JOB_LIST_LIMIT = 250;
+const DEFAULT_ACTIVE_BACKGROUND_JOB_LIST_LIMIT = 100;
 const jobs = loadJobs();
 
 function key(): Buffer {
@@ -316,10 +318,13 @@ export function listBackgroundRotations(
     normalizedHosts.add(filters.host.toLowerCase());
   }
 
-  const limit =
+  const requestedLimit =
     typeof filters.limit === "number" && filters.limit > 0
       ? filters.limit
-      : Number.POSITIVE_INFINITY;
+      : filters.activeOnly
+        ? DEFAULT_ACTIVE_BACKGROUND_JOB_LIST_LIMIT
+        : MAX_BACKGROUND_JOB_LIST_LIMIT;
+  const limit = Math.min(requestedLimit, MAX_BACKGROUND_JOB_LIST_LIMIT);
 
   return [...jobs.values()]
     .filter((job) => {

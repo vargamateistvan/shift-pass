@@ -388,7 +388,6 @@ export function Passwords() {
         {
           activeOnly: true,
           hosts: [...entryGroups.keys()],
-          limit: Math.max(unresolvedEntries.length * 3, 10),
         },
         controller.signal,
       );
