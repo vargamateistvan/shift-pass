@@ -28,6 +28,7 @@ export interface BackgroundJobSnapshot {
   email: string;
   status: BackgroundJobStatus;
   message: string;
+  terminalSummary: string | null;
   createdAt: string;
   updatedAt: string;
   result: BackgroundJobResult | null;
@@ -96,6 +97,7 @@ function reviveJob(job: BackgroundJobRecord): BackgroundJobRecord {
   const normalized: BackgroundJobRecord = {
     ...job,
     recentEvents: Array.isArray(job.recentEvents) ? [...job.recentEvents] : [],
+    terminalSummary: job.terminalSummary ?? null,
     result: job.result ?? null,
     error: job.error ?? null,
   };
@@ -113,6 +115,7 @@ function reviveJob(job: BackgroundJobRecord): BackgroundJobRecord {
     normalized.status = "error";
     normalized.message =
       "Server restarted before the background rotation completed. Start a new run.";
+    normalized.terminalSummary = normalized.message;
     normalized.error = normalized.message;
     normalized.updatedAt = now();
     normalized.recentEvents.push({ type: "error", text: normalized.message });
@@ -163,6 +166,7 @@ class BackgroundJobStream implements ProgressStream {
       case "phase":
         job.status = event.phase;
         job.message = event.message;
+        job.terminalSummary = null;
         job.recentEvents.push({ type: "phase", text: event.message });
         break;
       case "step":
@@ -175,11 +179,13 @@ class BackgroundJobStream implements ProgressStream {
       case "needs_human":
         job.status = "needs_human";
         job.message = event.message;
+        job.terminalSummary = event.reason;
         job.recentEvents.push({ type: "needs_human", text: event.message });
         break;
       case "done":
         job.status = "done";
         job.message = `Completed for ${event.site}`;
+        job.terminalSummary = `Password rotation completed for ${event.site}.`;
         job.result = {
           site: event.site,
           email: event.email,
@@ -190,6 +196,7 @@ class BackgroundJobStream implements ProgressStream {
       case "error":
         job.status = "error";
         job.message = event.message;
+        job.terminalSummary = event.message;
         job.error = event.message;
         job.recentEvents.push({ type: "error", text: event.message });
         break;
@@ -215,6 +222,7 @@ export function startBackgroundRotation(
     email: req.email,
     status: "queued",
     message: "Queued",
+    terminalSummary: null,
     createdAt: startedAt,
     updatedAt: startedAt,
     result: null,
@@ -233,6 +241,7 @@ export function startBackgroundRotation(
     if (next) {
       next.status = "error";
       next.message = err instanceof Error ? err.message : "Unknown error";
+      next.terminalSummary = next.message;
       next.error = next.message;
       next.updatedAt = now();
       next.recentEvents.push({ type: "error", text: next.message });
@@ -245,6 +254,7 @@ export function startBackgroundRotation(
   if (started) {
     started.status = "starting";
     started.message = "Running in the background";
+    started.terminalSummary = null;
     started.updatedAt = now();
     persistJobs();
   }
@@ -270,6 +280,7 @@ function snapshot(jobId: string): BackgroundJobSnapshot {
     email: job.email,
     status: job.status,
     message: job.message,
+    terminalSummary: job.terminalSummary,
     createdAt: job.createdAt,
     updatedAt: job.updatedAt,
     result: job.result,

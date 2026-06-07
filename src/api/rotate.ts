@@ -29,6 +29,7 @@ export interface BackgroundRotationJob {
     | "needs_human"
     | "error";
   message: string;
+  terminalSummary: string | null;
   createdAt: string;
   updatedAt: string;
   result: { site: string; email: string; password: string } | null;
