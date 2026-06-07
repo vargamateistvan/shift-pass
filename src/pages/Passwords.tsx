@@ -425,6 +425,8 @@ export function Passwords() {
 
       const trackedEntries = collectTrackedEntries(
         entries,
+
+        // Recover exact tracked jobs first, then use host-based fallback only for unresolved rows.
         trackedJobsRef.current,
       );
 

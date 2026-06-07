@@ -50,6 +50,14 @@ From the repo root you can also run `yarn server`.
 - `POST /api/rotate` — body `{ url, email, googleAccessToken }`. Streams
   progress as Server-Sent Events (`phase`, `step`, `screenshot`,
   `needs_human`, `done`, `error`).
+- `POST /api/rotate/background` — start a detached background rotation job.
+- `GET /api/rotate/background/:jobId` — fetch a single persisted background job.
+- `GET /api/rotate/background/batch?jobId=...` — fetch multiple persisted
+  background jobs by id in one request.
+- `GET /api/rotate/background` — list background jobs with filters such as
+  `email`, repeated `host`, `status`, and `activeOnly`; responses include
+  lightweight metadata describing applied limits and whether the result set was
+  truncated.
 - `GET /api/vault` — rotated entries (passwords masked).
 
 ## How it works
@@ -60,6 +68,9 @@ From the repo root you can also run `yarn server`.
 3. **Goal B** — agent opens the link and sets the generated password.
 4. **Vault** — `{ site, email, password, rotatedAt }` saved to `vault.json`
    (encrypted at rest).
+
+Background job snapshots are also persisted separately so the frontend can
+recover row-level progress after refreshes or server restarts.
 
 ## Safety & limits
 

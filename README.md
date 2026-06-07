@@ -31,6 +31,23 @@ Progress (phases, steps, live screenshots) streams to the UI over SSE.
 > password but does not submit it until you opt in. CAPTCHAs, 2FA/OTP, and login
 > walls are **not** bypassed — the agent pauses and asks you to finish manually.
 
+## Password page background jobs
+
+The Password page can also launch background reset runs directly from imported
+Google Password Manager CSV rows.
+
+- Row-to-job recovery prefers the exact tracked background job id when one is
+  already known.
+- If no tracked job can be recovered, the UI falls back to matching active jobs
+  by normalized host plus username/email.
+- Duplicate rows on the same host are assigned one-to-one, with exact URL
+  matches preferred before looser host matches.
+- If the server caps fallback results, the UI shows a warning so truncated
+  discovery is visible instead of silent.
+- Polling stays fast while active work is visible, but backs off when fallback
+  discovery is truncated and skips fallback queries entirely when there are no
+  unresolved host entries left.
+
 See [`server/README.md`](./server/README.md) for full setup. Quick start:
 
 ```bash
