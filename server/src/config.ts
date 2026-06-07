@@ -10,15 +10,26 @@ function int(value: string | undefined, fallback: number): number {
   return Number.isFinite(n) && n > 0 ? n : fallback;
 }
 
+function parseAllowedDomains(value: string | undefined): string[] {
+  const domains = (value ?? "")
+    .split(",")
+    .map((d) => d.trim().toLowerCase())
+    .filter(Boolean);
+
+  // "*" means allow any domain.
+  if (domains.includes("*")) {
+    return [];
+  }
+
+  return domains;
+}
+
 export const config = {
   port: int(process.env.PORT, 8787),
   anthropicApiKey: process.env.ANTHROPIC_API_KEY ?? "",
   anthropicModel: process.env.ANTHROPIC_MODEL ?? "claude-sonnet-4-5",
   vaultKey: process.env.VAULT_KEY ?? "",
-  allowedDomains: (process.env.ALLOWED_DOMAINS ?? "")
-    .split(",")
-    .map((d) => d.trim().toLowerCase())
-    .filter(Boolean),
+  allowedDomains: parseAllowedDomains(process.env.ALLOWED_DOMAINS),
   dryRun: bool(process.env.DRY_RUN, true),
   maxAgentSteps: int(process.env.MAX_AGENT_STEPS, 40),
 };
