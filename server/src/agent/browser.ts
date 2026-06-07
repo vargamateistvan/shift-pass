@@ -176,8 +176,14 @@ export class BrowserSession {
             if (blob.includes("reset")) score += 7;
             if (blob.includes("recover")) score += 5;
             if (blob.includes("trouble")) score += 4;
-            if (blob.includes("password")) score += 3;
             if (href.includes("forgot") || href.includes("reset")) score += 4;
+            // Penalize login-related keywords to avoid clicking sign-in
+            if (
+              blob.includes("login") ||
+              blob.includes("sign in") ||
+              blob.includes("signin")
+            )
+              score -= 10;
           } else {
             if (blob.includes("submit")) score += 7;
             if (blob.includes("send")) score += 6;
