@@ -2,10 +2,11 @@ import { Router } from "express";
 import { SseStream } from "../lib/sse.js";
 import {
   getBackgroundRotation,
+  listBackgroundRotations,
   startBackgroundRotation,
 } from "../agent/background.js";
 import { runRotation } from "../agent/orchestrator.js";
-import type { RotateRequest } from "../types.js";
+import type { BackgroundJobStatus, RotateRequest } from "../types.js";
 
 export const rotateRouter = Router();
 
@@ -51,6 +52,26 @@ rotateRouter.post("/rotate/background", (req, res) => {
       error: err instanceof Error ? err.message : "Failed to start job",
     });
   }
+});
+
+rotateRouter.get("/rotate/background", (req, res) => {
+  const email =
+    typeof req.query.email === "string" ? req.query.email : undefined;
+  const url = typeof req.query.url === "string" ? req.query.url : undefined;
+  const status =
+    typeof req.query.status === "string"
+      ? (req.query.status as BackgroundJobStatus)
+      : undefined;
+  const activeOnly = req.query.activeOnly === "true";
+
+  const jobs = listBackgroundRotations({
+    email,
+    url,
+    status,
+    activeOnly,
+  });
+
+  res.json({ jobs });
 });
 
 rotateRouter.get("/rotate/background/:jobId", (req, res) => {

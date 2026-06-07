@@ -75,6 +75,13 @@ function encrypt(records: BackgroundJobRecord[]): EncFile {
   };
 }
 
+export interface BackgroundJobFilters {
+  email?: string;
+  url?: string;
+  status?: BackgroundJobStatus;
+  activeOnly?: boolean;
+}
+
 function decrypt(file: EncFile): BackgroundJobRecord[] {
   const decipher = createDecipheriv(
     "aes-256-gcm",
@@ -266,6 +273,38 @@ export function getBackgroundRotation(
   jobId: string,
 ): BackgroundJobSnapshot | null {
   return jobs.has(jobId) ? snapshot(jobId) : null;
+}
+
+export function listBackgroundRotations(
+  filters: BackgroundJobFilters = {},
+): BackgroundJobSnapshot[] {
+  return [...jobs.values()]
+    .filter((job) => {
+      if (filters.email && job.email !== filters.email) {
+        return false;
+      }
+
+      if (filters.url && job.url !== filters.url) {
+        return false;
+      }
+
+      if (filters.status && job.status !== filters.status) {
+        return false;
+      }
+
+      if (
+        filters.activeOnly &&
+        (job.status === "done" ||
+          job.status === "needs_human" ||
+          job.status === "error")
+      ) {
+        return false;
+      }
+
+      return true;
+    })
+    .sort((left, right) => right.updatedAt.localeCompare(left.updatedAt))
+    .map((job) => snapshot(job.id));
 }
 
 function snapshot(jobId: string): BackgroundJobSnapshot {

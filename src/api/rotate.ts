@@ -37,6 +37,13 @@ export interface BackgroundRotationJob {
   recentEvents: Array<{ type: string; text: string }>;
 }
 
+export interface BackgroundRotationJobFilters {
+  email?: string;
+  url?: string;
+  status?: BackgroundRotationJob["status"];
+  activeOnly?: boolean;
+}
+
 function serverError(status: number, detail: string): Error {
   return new Error("Server error " + status + (detail ? ": " + detail : ""));
 }
@@ -135,4 +142,36 @@ export async function getBackgroundRotationJob(
   );
 
   return data.job;
+}
+
+export async function listBackgroundRotationJobs(
+  filters: BackgroundRotationJobFilters = {},
+  signal?: AbortSignal,
+): Promise<BackgroundRotationJob[]> {
+  const params = new URLSearchParams();
+
+  if (filters.email) {
+    params.set("email", filters.email);
+  }
+
+  if (filters.url) {
+    params.set("url", filters.url);
+  }
+
+  if (filters.status) {
+    params.set("status", filters.status);
+  }
+
+  if (filters.activeOnly) {
+    params.set("activeOnly", "true");
+  }
+
+  const query = params.toString();
+  const data = await jsonFetch<{ jobs: BackgroundRotationJob[] }>(
+    query ? `/api/rotate/background?${query}` : "/api/rotate/background",
+    { method: "GET" },
+    signal,
+  );
+
+  return data.jobs;
 }
