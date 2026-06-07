@@ -236,6 +236,7 @@ export async function runAgentGoal(
   const recentActions: string[] = [];
   let lastActionSig = "";
   let repeatedActionCount = 0;
+  const recentClickCoords: string[] = [];
 
   for (let step = 1; step <= config.maxAgentSteps; step += 1) {
     if (stream.isClosed)
@@ -324,6 +325,27 @@ export async function runAgentGoal(
         repeatedActionCount,
       });
       return { status: "needs_human", summary: reason };
+    }
+
+    if (mapped.action.action === "left_click") {
+      const coordKey = `${mapped.action.x},${mapped.action.y}`;
+      recentClickCoords.push(coordKey);
+      if (recentClickCoords.length > 18) recentClickCoords.shift();
+
+      const hotspotCount = recentClickCoords.filter(
+        (c) => c === coordKey,
+      ).length;
+      if (hotspotCount >= 7) {
+        const reason = `Agent appears stuck repeatedly clicking (${coordKey}). Manual intervention recommended.`;
+        log.warn("agent click-hotspot guard triggered", {
+          phase: opts.phase,
+          step,
+          coordKey,
+          hotspotCount,
+          historySize: recentClickCoords.length,
+        });
+        return { status: "needs_human", summary: reason };
+      }
     }
 
     stream.send({

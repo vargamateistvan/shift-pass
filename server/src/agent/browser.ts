@@ -133,6 +133,31 @@ export class BrowserSession {
       try {
         await emailInput.fill(email, { timeout: 2000 });
         notes.push("filled email input");
+
+        try {
+          await emailInput.press("Enter", { timeout: 1000 });
+          notes.push("pressed Enter on email input");
+          await this.settle();
+        } catch {
+          /* Enter may not submit; try explicit form submit below */
+        }
+
+        try {
+          await emailInput.evaluate((el) => {
+            const form = (el as HTMLInputElement).form;
+            if (form) {
+              if (typeof form.requestSubmit === "function") {
+                form.requestSubmit();
+              } else {
+                form.submit();
+              }
+            }
+          });
+          notes.push("submitted parent form");
+          await this.settle();
+        } catch {
+          /* ignore; fallback submit-button click still applies */
+        }
       } catch {
         /* continue with next heuristics */
       }
