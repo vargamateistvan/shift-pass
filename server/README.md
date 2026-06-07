@@ -19,15 +19,15 @@ cp .env.example .env   # then fill in the values below
 
 Edit `.env`:
 
-| Var               | Purpose                                                                   |
-| ----------------- | ------------------------------------------------------------------------- |
-| `GEMINI_API_KEY`  | Required. Powers the Gemini agent.                                        |
-| `GEMINI_MODEL`    | Gemini model id (default `gemini-2.5-pro`).                               |
+| Var                     | Purpose                                                                                             |
+| ----------------------- | --------------------------------------------------------------------------------------------------- |
+| `GEMINI_API_KEY`        | Required. Powers the Gemini agent.                                                                  |
+| `GEMINI_MODEL`          | Gemini model id (default `gemini-2.5-pro`).                                                         |
 | `GEMINI_FALLBACK_MODEL` | Optional fallback model when the primary model hits quota/rate limits (default `gemini-2.5-flash`). |
-| `VAULT_KEY`       | 64 hex chars (32 bytes) for AES-256-GCM. Generate below.                  |
-| `ALLOWED_DOMAINS` | Comma-separated allowlist. Empty = allow any.                             |
-| `DRY_RUN`         | `true` (default) walks the flow but does **not** submit the new password. |
-| `MAX_AGENT_STEPS` | Per-goal step cap (default 40).                                           |
+| `VAULT_KEY`             | 64 hex chars (32 bytes) for AES-256-GCM. Generate below.                                            |
+| `ALLOWED_DOMAINS`       | Comma-separated allowlist. Empty = allow any.                                                       |
+| `DRY_RUN`               | `true` (default) walks the flow but does **not** submit the new password.                           |
+| `MAX_AGENT_STEPS`       | Per-goal step cap (default 40).                                                                     |
 
 Generate a vault key:
 

@@ -18,6 +18,7 @@ export interface AuthContextValue {
   accessToken: string | null;
   user: UserProfile | null;
   isAuthenticated: boolean;
+  restoring: boolean;
   loading: boolean;
   error: string | null;
   signIn: () => void;

@@ -34,6 +34,8 @@ function errorMessage(err: unknown): string {
 function isRetryableGeminiError(err: unknown): boolean {
   const msg = errorMessage(err).toLowerCase();
   return (
+    msg.includes("503") ||
+    msg.includes("unavailable") ||
     msg.includes("429") ||
     msg.includes("resource_exhausted") ||
     msg.includes("rate limit") ||
@@ -66,6 +68,12 @@ function parseRetryDelayMs(err: unknown): number | undefined {
 
 function mapGeminiError(err: unknown): Error {
   const msg = errorMessage(err);
+  const lower = msg.toLowerCase();
+  if (lower.includes("503") || lower.includes("unavailable")) {
+    return new Error(
+      "Gemini is temporarily unavailable due to high demand. Please retry shortly.",
+    );
+  }
   if (msg.toLowerCase().includes("fetch failed")) {
     return new Error(
       "Gemini request failed (network). Check outbound access to Google Gemini APIs and verify GEMINI_API_KEY.",
@@ -124,7 +132,8 @@ async function generateGeminiStep(
       } catch (err) {
         lastError = err;
 
-        const retryDelayMs = parseRetryDelayMs(err) ?? 250 * attempt;
+        const retryDelayMs =
+          parseRetryDelayMs(err) ?? 1000 * 2 ** (attempt - 1);
         const quotaExhausted = isQuotaExhaustedError(err);
         const retryable = isRetryableGeminiError(err);
 
@@ -165,6 +174,7 @@ Rules:
 - There is NO browser chrome or address bar in the screenshot. To open a URL, call the "navigate" tool.
 - Take a screenshot first to observe, then act. After acting, observe the new screenshot.
 - Be efficient and deliberate; click precisely using pixel coordinates from the screenshot.
+- Do not repeat the exact same action and coordinates more than 3 times in a row.
 - NEVER attempt to solve CAPTCHAs, image challenges, 2FA/OTP codes, or phone verification. If you hit one, call "finish" with status "needs_human".
 - When the goal is fully achieved, call "finish" with status "done" and a short summary.
 - Call exactly one tool per turn.`;
@@ -194,6 +204,8 @@ export async function runAgentGoal(
 ): Promise<GoalResult> {
   let obs = await observation(browser);
   const recentActions: string[] = [];
+  let lastActionSig = "";
+  let repeatedActionCount = 0;
 
   for (let step = 1; step <= config.maxAgentSteps; step += 1) {
     if (stream.isClosed)
@@ -205,6 +217,7 @@ export async function runAgentGoal(
       `STEP: ${step}\n` +
       `${obs.text}\n` +
       `Recent actions: ${recentActions.join(" | ") || "none"}\n` +
+      `Avoid clicking the same coordinates repeatedly; if blocked, use finish(needs_human).\n` +
       `Choose the single best next action and call exactly one tool.`;
 
     const resp = await generateGeminiStep(
@@ -262,6 +275,27 @@ export async function runAgentGoal(
     }
 
     const result = await executeAction(browser, mapped.action);
+    const actionSig = `${mapped.action.action}:${result.detail ?? ""}`;
+    if (actionSig === lastActionSig) {
+      repeatedActionCount += 1;
+    } else {
+      lastActionSig = actionSig;
+      repeatedActionCount = 1;
+    }
+
+    if (repeatedActionCount >= 8) {
+      const reason =
+        "Agent appears stuck repeating the same action. Manual intervention recommended.";
+      log.warn("agent repeated-action guard triggered", {
+        phase: opts.phase,
+        step,
+        action: mapped.action.action,
+        detail: result.detail,
+        repeatedActionCount,
+      });
+      return { status: "needs_human", summary: reason };
+    }
+
     stream.send({
       type: "step",
       index: step,

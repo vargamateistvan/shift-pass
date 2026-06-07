@@ -23,6 +23,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [tokenState, setTokenState] = useState<TokenState | null>(null);
   const [user, setUser] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(false);
+  const [restoring, setRestoring] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const restoreAttempted = useRef(false);
 
@@ -51,6 +52,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     (resp: { access_token: string; expires_in?: number }) => {
       setError(null);
       setLoading(false);
+      setRestoring(false);
       const expiresAt = Date.now() + (resp.expires_in ?? 3600) * 1000;
       setTokenState({ token: resp.access_token, expiresAt });
       void fetchProfile(resp.access_token);
@@ -63,6 +65,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const handleFailure = useCallback((message: string, silent = false) => {
     setLoading(false);
+    setRestoring(false);
     if (!silent) setError(message);
     pendingReject.current?.(new Error(message));
     pendingResolve.current = null;
@@ -92,7 +95,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (restoreAttempted.current || tokenState) return;
     restoreAttempted.current = true;
-    silentLogin();
+    setRestoring(true);
+
+    const timer = window.setTimeout(() => {
+      setRestoring(false);
+    }, 3000);
+
+    const kickoff = window.setTimeout(() => {
+      silentLogin();
+    }, 0);
+
+    return () => {
+      window.clearTimeout(kickoff);
+      window.clearTimeout(timer);
+    };
   }, [silentLogin, tokenState]);
 
   const signIn = useCallback(() => {
@@ -135,13 +151,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       accessToken: tokenState?.token ?? null,
       user,
       isAuthenticated: !!tokenState,
+      restoring,
       loading,
       error,
       signIn,
       signOut,
       getToken,
     }),
-    [tokenState, user, loading, error, signIn, signOut, getToken],
+    [tokenState, user, restoring, loading, error, signIn, signOut, getToken],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
