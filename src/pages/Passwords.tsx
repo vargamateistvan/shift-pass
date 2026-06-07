@@ -7,6 +7,7 @@ import {
   listBackgroundRotationJobsDetailed,
   startBackgroundRotation,
   type BackgroundRotationJob,
+  type BackgroundRotationJobListResult,
 } from "../api/rotate";
 import { type GooglePasswordEntry } from "../passwords/context";
 import { useLoadedCsv } from "../passwords/useLoadedCsv";
@@ -15,6 +16,23 @@ const BACKGROUND_JOB_STORAGE_KEY = "shiftpass.passwordRowJobs";
 const STALE_TRACKED_JOB_FAILURE_LIMIT = 2;
 const BACKGROUND_REFRESH_FAST_MS = 4000;
 const BACKGROUND_REFRESH_SLOW_MS = 12000;
+
+interface TrackedEntry {
+  key: string;
+  entry: GooglePasswordEntry;
+  jobId: string;
+}
+
+type TrackedLookupResult =
+  | { key: string; entry: GooglePasswordEntry; job: BackgroundRotationJob }
+  | { key: string; entry: GooglePasswordEntry; retryable: boolean };
+
+interface ResolvedTrackedJobs {
+  trackedJobsByKey: Record<string, BackgroundRotationJob>;
+  unresolvedEntries: GooglePasswordEntry[];
+  graceTrackedKeys: Set<string>;
+  nextFailureCounts: Record<string, number>;
+}
 
 function parseCsvRow(line: string): string[] {
   const out: string[] = [];
@@ -217,6 +235,124 @@ function assignFallbackJobs(
   return assignments;
 }
 
+function collectTrackedEntries(
+  entries: GooglePasswordEntry[],
+  trackedJobs: Record<string, string>,
+): TrackedEntry[] {
+  return entries
+    .map((entry) => {
+      const key = entryKey(entry);
+      const jobId = trackedJobs[key];
+      return jobId ? { key, entry, jobId } : null;
+    })
+    .filter((result): result is TrackedEntry => Boolean(result));
+}
+
+async function lookupTrackedJobs(
+  trackedEntries: TrackedEntry[],
+  signal: AbortSignal,
+): Promise<TrackedLookupResult[]> {
+  const jobs = await getBackgroundRotationJobs(
+    trackedEntries.map((entry) => entry.jobId),
+    signal,
+  );
+  const jobsById = Object.fromEntries(
+    jobs.map((job) => [job.id, job] as const),
+  );
+
+  return trackedEntries.map(({ key, entry, jobId }) => {
+    const job = jobsById[jobId];
+    if (job) {
+      return { key, entry, job };
+    }
+
+    return { key, entry, retryable: false };
+  });
+}
+
+function resolveTrackedJobs(
+  entries: GooglePasswordEntry[],
+  trackedPairs: TrackedLookupResult[],
+  trackedJobFailureCounts: Record<string, number>,
+): ResolvedTrackedJobs {
+  const nextFailureCounts = { ...trackedJobFailureCounts };
+  const graceTrackedKeys = new Set<string>();
+  const trackedJobsByKey: Record<string, BackgroundRotationJob> = {};
+
+  for (const result of trackedPairs) {
+    if ("retryable" in result) {
+      if (result.retryable) {
+        graceTrackedKeys.add(result.key);
+        continue;
+      }
+
+      const failureCount = (nextFailureCounts[result.key] ?? 0) + 1;
+      if (failureCount < STALE_TRACKED_JOB_FAILURE_LIMIT) {
+        nextFailureCounts[result.key] = failureCount;
+        graceTrackedKeys.add(result.key);
+      } else {
+        delete nextFailureCounts[result.key];
+      }
+      continue;
+    }
+
+    trackedJobsByKey[result.key] = result.job;
+    delete nextFailureCounts[result.key];
+  }
+
+  const unresolvedEntries = entries.filter((entry) => {
+    const key = entryKey(entry);
+    return !trackedJobsByKey[key] && !graceTrackedKeys.has(key);
+  });
+
+  return {
+    trackedJobsByKey,
+    unresolvedEntries,
+    graceTrackedKeys,
+    nextFailureCounts,
+  };
+}
+
+function groupEntriesByHost(
+  entries: GooglePasswordEntry[],
+): Map<string, GooglePasswordEntry[]> {
+  const entryGroups = new Map<string, GooglePasswordEntry[]>();
+
+  for (const entry of entries) {
+    const host = hostFromUrl(entry.url);
+    if (!host) {
+      continue;
+    }
+
+    const group = entryGroups.get(host);
+    if (group) {
+      group.push(entry);
+    } else {
+      entryGroups.set(host, [entry]);
+    }
+  }
+
+  return entryGroups;
+}
+
+async function loadFallbackResult(
+  unresolvedEntries: GooglePasswordEntry[],
+  signal: AbortSignal,
+): Promise<BackgroundRotationJobListResult> {
+  const entryGroups = groupEntriesByHost(unresolvedEntries);
+  if (entryGroups.size === 0) {
+    return emptyBackgroundRotationJobListResult();
+  }
+
+  return listBackgroundRotationJobsDetailed(
+    {
+      activeOnly: true,
+      hosts: [...entryGroups.keys()],
+    },
+    signal,
+  );
+}
+
 export function Passwords() {
   const navigate = useNavigate();
   const { getToken } = useAuth();
@@ -287,48 +423,18 @@ export function Passwords() {
         return;
       }
 
-      const trackedEntries = entries
-        .map((entry) => {
-          const key = entryKey(entry);
-          const jobId = trackedJobsRef.current[key];
-          return jobId ? { key, entry, jobId } : null;
-        })
-        .filter(
-          (
-            result,
-          ): result is {
-            key: string;
-            entry: GooglePasswordEntry;
-            jobId: string;
-          } => Boolean(result),
-        );
+      const trackedEntries = collectTrackedEntries(
+        entries,
+        trackedJobsRef.current,
+      );
 
-      let trackedPairs: Array<
-        | {
-            key: string;
-            entry: GooglePasswordEntry;
-            job: BackgroundRotationJob;
-          }
-        | { key: string; entry: GooglePasswordEntry; retryable: boolean }
-      >;
+      let trackedPairs: TrackedLookupResult[];
 
       try {
-        const jobs = await getBackgroundRotationJobs(
-          trackedEntries.map((entry) => entry.jobId),
+        trackedPairs = await lookupTrackedJobs(
+          trackedEntries,
           controller.signal,
         );
-        const jobsById = Object.fromEntries(
-          jobs.map((job) => [job.id, job] as const),
-        );
-
-        trackedPairs = trackedEntries.map(({ key, entry, jobId }) => {
-          const job = jobsById[jobId];
-          if (job) {
-            return { key, entry, job };
-          }
-
-          return { key, entry, retryable: false };
-        });
       } catch (error) {
         if (cancelled || controller.signal.aborted) {
           return;
@@ -346,61 +452,21 @@ export function Passwords() {
         return;
       }
 
-      const nextFailureCounts = { ...trackedJobFailureCountsRef.current };
-      const graceTrackedKeys = new Set<string>();
-      const trackedJobsByKey: Record<string, BackgroundRotationJob> = {};
+      const {
+        trackedJobsByKey,
+        unresolvedEntries,
+        graceTrackedKeys,
+        nextFailureCounts,
+      } = resolveTrackedJobs(
+        entries,
+        trackedPairs,
+        trackedJobFailureCountsRef.current,
+      );
 
-      for (const result of trackedPairs) {
-        if ("retryable" in result) {
-          if (result.retryable) {
-            graceTrackedKeys.add(result.key);
-            continue;
-          }
-
-          const failureCount = (nextFailureCounts[result.key] ?? 0) + 1;
-          if (failureCount < STALE_TRACKED_JOB_FAILURE_LIMIT) {
-            nextFailureCounts[result.key] = failureCount;
-            graceTrackedKeys.add(result.key);
-          } else {
-            delete nextFailureCounts[result.key];
-          }
-          continue;
-        }
-
-        trackedJobsByKey[result.key] = result.job;
-        delete nextFailureCounts[result.key];
-      }
-
-      const unresolvedEntries = entries.filter((entry) => {
-        const key = entryKey(entry);
-        return !trackedJobsByKey[key] && !graceTrackedKeys.has(key);
-      });
-
-      const entryGroups = new Map<string, GooglePasswordEntry[]>();
-      for (const entry of unresolvedEntries) {
-        const host = hostFromUrl(entry.url);
-        if (!host) {
-          continue;
-        }
-
-        const group = entryGroups.get(host);
-        if (group) {
-          group.push(entry);
-        } else {
-          entryGroups.set(host, [entry]);
-        }
-      }
-
-      const fallbackResult =
-        entryGroups.size > 0
-          ? await listBackgroundRotationJobsDetailed(
-              {
-                activeOnly: true,
-                hosts: [...entryGroups.keys()],
-              },
-              controller.signal,
-            )
-          : emptyBackgroundRotationJobListResult();
+      const fallbackResult = await loadFallbackResult(
+        unresolvedEntries,
+        controller.signal,
+      );
 
       if (cancelled) {
         return;
