@@ -237,15 +237,17 @@ function RotateForm() {
               <p className="muted">{backgroundJob.message}</p>
               {backgroundNeedsHuman && (
                 <div className="rotate-human rotate-background-alert">
-                  ⚠ This run paused because the site required a step the agent
-                  cannot safely complete, such as CAPTCHA, 2FA, OTP, or a login
-                  wall. Finish that step manually, then start a new run.
+                  ⚠ {backgroundJob.terminalSummary ?? backgroundJob.message}
                 </div>
               )}
               {backgroundFailed && (
                 <div className="rotate-error rotate-background-alert">
                   <strong>Background run failed.</strong>
-                  <span>{backgroundJob.error ?? backgroundJob.message}</span>
+                  <span>
+                    {backgroundJob.terminalSummary ??
+                      backgroundJob.error ??
+                      backgroundJob.message}
+                  </span>
                 </div>
               )}
               <ul className="rotate-log rotate-background-log">
