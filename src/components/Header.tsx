@@ -15,8 +15,9 @@ export function Header() {
       {isAuthenticated && (
         <nav className="nav">
           <NavLink to="/app" end>
-            Inbox
+            Password
           </NavLink>
+          <NavLink to="/app/inbox">Inbox</NavLink>
           <NavLink to="/app/compose">Compose</NavLink>
           <NavLink to="/app/rotate">Rotate</NavLink>
         </nav>

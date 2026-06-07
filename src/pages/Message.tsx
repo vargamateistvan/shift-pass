@@ -31,7 +31,7 @@ export function Message() {
 
   return (
     <div className="page">
-      <Link to="/app" className="back-link">
+      <Link to="/app/inbox" className="back-link">
         ← Back to inbox
       </Link>
 
