@@ -11,6 +11,7 @@ import { type GooglePasswordEntry } from "../passwords/context";
 import { useLoadedCsv } from "../passwords/useLoadedCsv";
 
 const BACKGROUND_JOB_STORAGE_KEY = "shiftpass.passwordRowJobs";
+const STALE_TRACKED_JOB_FAILURE_LIMIT = 2;
 
 function parseCsvRow(line: string): string[] {
   const out: string[] = [];
@@ -154,6 +155,21 @@ function trackActiveJobs(
   );
 }
 
+function shouldRetryTrackedJob(error: unknown): boolean {
+  if (error instanceof DOMException && error.name === "AbortError") {
+    return false;
+  }
+
+  if (!(error instanceof Error)) {
+    return true;
+  }
+
+  return !(
+    error.message.startsWith("Server error 404") ||
+    /background job not found/i.test(error.message)
+  );
+}
+
 function fallbackGroupKey(
   entry: Pick<GooglePasswordEntry, "url" | "username">,
 ) {
@@ -215,6 +231,8 @@ export function Passwords() {
   const [rowJobs, setRowJobs] = useState<Record<string, BackgroundRotationJob>>(
     {},
   );
+  const rowJobsRef = useRef(rowJobs);
+  const trackedJobFailureCountsRef = useRef<Record<string, number>>({});
   const [visiblePasswords, setVisiblePasswords] = useState<
     Record<string, boolean>
   >({});
@@ -230,6 +248,10 @@ export function Passwords() {
         .size,
     [entries],
   );
+
+  useEffect(() => {
+    rowJobsRef.current = rowJobs;
+  }, [rowJobs]);
 
   useEffect(() => {
     trackedJobsRef.current = trackedJobs;
@@ -271,9 +293,13 @@ export function Passwords() {
               jobId,
               controller.signal,
             );
-            return [key, job, entry] as const;
-          } catch {
-            return null;
+            return { key, entry, job } as const;
+          } catch (error) {
+            return {
+              key,
+              entry,
+              retryable: shouldRetryTrackedJob(error),
+            } as const;
           }
         }),
       );
@@ -282,21 +308,40 @@ export function Passwords() {
         return;
       }
 
-      const trackedJobsByKey = Object.fromEntries(
-        trackedPairs
-          .filter(
-            (
-              result,
-            ): result is readonly [
-              string,
-              BackgroundRotationJob,
-              GooglePasswordEntry,
-            ] => Boolean(result),
-          )
-          .map(([key, job]) => [key, job]),
-      );
+      const nextFailureCounts = { ...trackedJobFailureCountsRef.current };
+      const graceTrackedKeys = new Set<string>();
+      const trackedJobsByKey: Record<string, BackgroundRotationJob> = {};
+
+      for (const result of trackedPairs) {
+        if (!result) {
+          continue;
+        }
+
+        if ("retryable" in result) {
+          if (result.retryable) {
+            graceTrackedKeys.add(result.key);
+            continue;
+          }
+
+          const failureCount = (nextFailureCounts[result.key] ?? 0) + 1;
+          if (failureCount < STALE_TRACKED_JOB_FAILURE_LIMIT) {
+            nextFailureCounts[result.key] = failureCount;
+            graceTrackedKeys.add(result.key);
+          } else {
+            delete nextFailureCounts[result.key];
+          }
+          continue;
+        }
+
+        trackedJobsByKey[result.key] = result.job;
+        delete nextFailureCounts[result.key];
+      }
+
       const unresolvedEntries = entries.filter(
-        (entry) => !trackedJobsByKey[entryKey(entry)],
+        (entry) => {
+          const key = entryKey(entry);
+          return !trackedJobsByKey[key] && !graceTrackedKeys.has(key);
+        },
       );
 
       const entryGroups = new Map<string, GooglePasswordEntry[]>();
@@ -338,13 +383,31 @@ export function Passwords() {
         ...fallbackJobs,
         ...trackedJobsByKey,
       };
+
+      for (const key of graceTrackedKeys) {
+        const preservedJob = rowJobsRef.current[key];
+        if (preservedJob && !nextJobs[key]) {
+          nextJobs[key] = preservedJob;
+        }
+      }
+
+      trackedJobFailureCountsRef.current = nextFailureCounts;
       setRowJobs(nextJobs);
-      setTrackedJobs(trackActiveJobs(nextJobs));
+
+      const nextTrackedJobs = trackActiveJobs(nextJobs);
+      for (const key of graceTrackedKeys) {
+        const jobId = trackedJobsRef.current[key];
+        if (jobId && !nextTrackedJobs[key]) {
+          nextTrackedJobs[key] = jobId;
+        }
+      }
+
+      setTrackedJobs(nextTrackedJobs);
 
       const hasActiveJob = Object.values(nextJobs).some(
         (job) => !isTerminalJob(job.status),
       );
-      if (hasActiveJob) {
+      if (hasActiveJob || graceTrackedKeys.size > 0) {
         timer = globalThis.setTimeout(refresh, 4000);
       }
     };
