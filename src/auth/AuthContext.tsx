@@ -1,4 +1,11 @@
-import { useCallback, useMemo, useRef, useState, type ReactNode } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import { useGoogleLogin, googleLogout } from "@react-oauth/google";
 import {
   AuthContext,
@@ -17,6 +24,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const restoreAttempted = useRef(false);
 
   // Resolver for the in-flight silent token request, if any.
   const pendingResolve = useRef<((token: string) => void) | null>(null);
@@ -39,9 +47,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  const login = useGoogleLogin({
-    scope: GMAIL_SCOPES,
-    onSuccess: (resp) => {
+  const handleSuccess = useCallback(
+    (resp: { access_token: string; expires_in?: number }) => {
       setError(null);
       setLoading(false);
       const expiresAt = Date.now() + (resp.expires_in ?? 3600) * 1000;
@@ -51,17 +58,42 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       pendingResolve.current = null;
       pendingReject.current = null;
     },
+    [fetchProfile],
+  );
+
+  const handleFailure = useCallback((message: string, silent = false) => {
+    setLoading(false);
+    if (!silent) setError(message);
+    pendingReject.current?.(new Error(message));
+    pendingResolve.current = null;
+    pendingReject.current = null;
+  }, []);
+
+  const login = useGoogleLogin({
+    scope: GMAIL_SCOPES,
+    onSuccess: handleSuccess,
     onError: (err) => {
-      setLoading(false);
       const message =
         (err as { error_description?: string }).error_description ??
         "Google sign-in failed";
-      setError(message);
-      pendingReject.current?.(new Error(message));
-      pendingResolve.current = null;
-      pendingReject.current = null;
+      handleFailure(message);
     },
   });
+
+  const silentLogin = useGoogleLogin({
+    scope: GMAIL_SCOPES,
+    prompt: "none",
+    onSuccess: handleSuccess,
+    onError: () => {
+      handleFailure("Silent sign-in unavailable", true);
+    },
+  });
+
+  useEffect(() => {
+    if (restoreAttempted.current || tokenState) return;
+    restoreAttempted.current = true;
+    silentLogin();
+  }, [silentLogin, tokenState]);
 
   const signIn = useCallback(() => {
     setLoading(true);
