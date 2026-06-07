@@ -220,7 +220,7 @@ export class BrowserSession {
 
     const resetByText = this.page
       .locator('a, button, [role="button"], [role="link"]')
-      .filter({ hasText: /forgot|reset|trouble|can't sign in|recover/i });
+      .filter({ hasText: /forgot|reset|trouble|recover/i });
     const resetByAria = this.page.locator(
       [
         '[aria-label*="forgot" i]',
@@ -229,39 +229,10 @@ export class BrowserSession {
       ].join(", "),
     );
 
-    const signInTriggers = this.page
-      .locator('a, button, [role="button"], [role="link"]')
-      .filter({ hasText: /sign in|log in|login|account/i });
-
-    let clickedReset =
+    const clickedReset =
       (await tryClickCandidates(resetByText, "reset trigger")) ||
       (await tryClickCandidates(resetByAria, "reset trigger (aria)")) ||
       (await tryClickScored("reset", "reset trigger (scored)"));
-
-    // If reset controls are hidden behind a sign-in entry point, open it first.
-    if (!clickedReset) {
-      const clickedSignIn = await tryClickCandidates(
-        signInTriggers,
-        "sign-in trigger",
-        3,
-      );
-      if (clickedSignIn) {
-        notes.push("opened sign-in view");
-        clickedReset =
-          (await tryClickCandidates(
-            resetByText,
-            "reset trigger after sign-in",
-          )) ||
-          (await tryClickCandidates(
-            resetByAria,
-            "reset trigger (aria) after sign-in",
-          )) ||
-          (await tryClickScored(
-            "reset",
-            "reset trigger (scored) after sign-in",
-          ));
-      }
-    }
 
     if (!clickedReset) {
       notes.push("reset trigger not found");

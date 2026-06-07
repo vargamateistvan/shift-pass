@@ -58,18 +58,17 @@ export async function runRotation(
       accountEmail: req.email,
       goal:
         `Request a password-reset email for account "${req.email}". ` +
-        `Primary objective: complete the reset-request step and reach a clear confirmation state ` +
-        `(for example: "email sent", "check your inbox", "reset link sent", "verification email sent"). ` +
-        `Required sequence: ` +
-        `(1) locate and click Forgot password / Reset password (or equivalent), ` +
-        `(2) enter "${req.email}" into the email/username field, ` +
-        `(3) submit via Send / Continue / Next / Submit. ` +
-        `If reset controls are hidden, open Sign in / Log in first, then retry step (1). ` +
-        `Use Reset candidates and their coordinates as your first choice when available. ` +
-        `Do not keep clicking the same element repeatedly; if blocked by CAPTCHA, 2FA, login wall, ` +
-        `or no recoverable reset path, finish with status "needs_human" and a specific reason. ` +
-        `Only finish with status "done" after the reset request has clearly been accepted by the site. ` +
-        `Do NOT set a new password in this step.`,
+        `Do NOT attempt to log in. Focus only on the forgot-password / password-reset flow. ` +
+        `Required sequence (in strict order): ` +
+        `(1) Locate and click the "Forgot password" or "Reset password" button/link. ` +
+        `(2) Enter the email "${req.email}" into the email field. ` +
+        `(3) Submit the form by clicking Send / Continue / Submit / Request Reset / etc. ` +
+        `(4) Confirm that the reset request was accepted (look for "email sent", "check inbox", "reset link sent", or similar). ` +
+        `Use Reset candidates from the interface hints as your first choice when available. ` +
+        `If the forgot-password button is not visible on the current page, it may be behind a link or tab—look for it before attempting anything else. ` +
+        `Do not repeatedly click the same element; if stuck or blocked by CAPTCHA/2FA, finish with status "needs_human" and explain why. ` +
+        `Only finish with status "done" after clearly confirming the reset request was sent to the email. ` +
+        `Do NOT log in, set a new password, or perform any other action. Do NOT skip the "forgot password" step.`,
     });
     if (goalA.status === "needs_human") return human(stream, goalA.summary);
     if (goalA.status === "exhausted")
