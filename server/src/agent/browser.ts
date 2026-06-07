@@ -168,16 +168,38 @@ export class BrowserSession {
           const id = (el.getAttribute("id") || "").toLowerCase();
           const cls = (el.getAttribute("class") || "").toLowerCase();
           const type = (el.getAttribute("type") || "").toLowerCase();
-          const blob = [text, href, id, cls, type].join(" ");
+          const dataAttr = (el.getAttribute("data-testid") || "").toLowerCase();
+          const blob = [text, href, id, cls, type, dataAttr].join(" ");
+
+          // Estimate position: top 20% of viewport is header/nav area
+          const inHeader = rect.top < window.innerHeight * 0.2;
 
           let score = 0;
           if (k === "reset") {
+            // Strong signals: explicit reset/recovery keywords
             if (blob.includes("forgot")) score += 8;
             if (blob.includes("reset")) score += 7;
-            if (blob.includes("recover")) score += 5;
-            if (blob.includes("trouble")) score += 4;
-            if (href.includes("forgot") || href.includes("reset")) score += 4;
-            // Penalize login-related keywords to avoid clicking sign-in
+            if (blob.includes("recover")) score += 6;
+            if (blob.includes("regain")) score += 5;
+
+            // Contextual signals: help/support when near password context
+            if (blob.includes("help") || blob.includes("support")) {
+              if (blob.includes("password") || blob.includes("account"))
+                score += 4;
+            }
+
+            // Link-based signals
+            if (
+              href.includes("forgot") ||
+              href.includes("reset") ||
+              href.includes("recover")
+            )
+              score += 4;
+
+            // Position bonus: links in top area might be account/help
+            if (inHeader && (text.length > 0 || href.length > 0)) score += 1;
+
+            // Penalize obvious login keywords
             if (
               blob.includes("login") ||
               blob.includes("sign in") ||
@@ -226,19 +248,42 @@ export class BrowserSession {
 
     const resetByText = this.page
       .locator('a, button, [role="button"], [role="link"]')
-      .filter({ hasText: /forgot|reset|trouble|recover/i });
+      .filter({
+        hasText:
+          /forgot|reset|trouble|recover|regain|help|support|password.*recover|recover.*password|don't.*remember|can't.*sign|assist|claim/i,
+      });
     const resetByAria = this.page.locator(
       [
         '[aria-label*="forgot" i]',
         '[aria-label*="reset" i]',
         '[aria-label*="recover" i]',
+        '[aria-label*="regain" i]',
+        '[aria-label*="help" i]',
+      ].join(", "),
+    );
+
+    // Additional detection: look for common ID/class patterns
+    const resetByPattern = this.page.locator(
+      [
+        '[id*="forgot" i]',
+        '[id*="reset" i]',
+        '[id*="recover" i]',
+        '[id*="password" i]:not([id*="change" i]):not([id*="set" i])',
+        '[class*="forgot" i]',
+        '[class*="reset" i]',
+        '[class*="recover" i]',
+        '[href*="forgot" i]',
+        '[href*="reset" i]',
+        '[href*="recover" i]',
       ].join(", "),
     );
 
     const clickedReset =
       (await tryClickCandidates(resetByText, "reset trigger")) ||
       (await tryClickCandidates(resetByAria, "reset trigger (aria)")) ||
-      (await tryClickScored("reset", "reset trigger (scored)"));
+      (await tryClickCandidates(resetByPattern, "reset trigger (pattern)")) ||
+      (await tryClickScored("reset", "reset trigger (scored)")) ||
+      (await tryClickScored("reset", "reset trigger (fallback scored)", 3));
 
     if (!clickedReset) {
       notes.push("reset trigger not found");
