@@ -22,6 +22,15 @@ export type InteractiveEl = {
   tag: string;
   type?: string;
   text: string;
+  x: number;
+  y: number;
+};
+
+export type ResetHint = {
+  kind: "email_input" | "reset_link" | "submit_button";
+  text: string;
+  x: number;
+  y: number;
 };
 
 /** Wraps one Chromium page with the primitives the agent can drive. */
@@ -104,7 +113,7 @@ export class BrowserSession {
   /** Compact list of interactive elements to give the model textual grounding. */
   async interactiveElements(): Promise<InteractiveEl[]> {
     return this.page.evaluate(() => {
-      const out: { tag: string; type?: string; text: string }[] = [];
+      const out: { tag: string; type?: string; text: string; x: number; y: number }[] = [];
       const nodes = document.querySelectorAll(
         'a, button, input, textarea, [role="button"], [role="link"]',
       );
@@ -121,9 +130,80 @@ export class BrowserSession {
           tag: el.tagName.toLowerCase(),
           type: el.getAttribute("type") ?? undefined,
           text: label,
+          x: Math.round(rect.left + rect.width / 2),
+          y: Math.round(rect.top + rect.height / 2),
         });
       });
       return out.slice(0, 40);
+    });
+  }
+
+  /** Targeted candidates for password-reset flows with direct click coordinates. */
+  async resetHints(): Promise<ResetHint[]> {
+    return this.page.evaluate(() => {
+      const out: ResetHint[] = [];
+
+      const add = (
+        kind: ResetHint["kind"],
+        el: Element,
+        text: string,
+      ): void => {
+        const rect = (el as HTMLElement).getBoundingClientRect();
+        if (rect.width === 0 || rect.height === 0) return;
+        out.push({
+          kind,
+          text: text.slice(0, 80),
+          x: Math.round(rect.left + rect.width / 2),
+          y: Math.round(rect.top + rect.height / 2),
+        });
+      };
+
+      const emailNodes = document.querySelectorAll(
+        'input[type="email"], input[name*="email" i], input[id*="email" i], input[autocomplete="email"]',
+      );
+      emailNodes.forEach((el) => {
+        const he = el as HTMLInputElement;
+        const label =
+          he.getAttribute("aria-label") ||
+          he.getAttribute("placeholder") ||
+          he.getAttribute("name") ||
+          "email";
+        add("email_input", el, label);
+      });
+
+      const resetNodes = document.querySelectorAll(
+        'a, button, [role="button"], [role="link"]',
+      );
+      resetNodes.forEach((el) => {
+        const txt = ((el as HTMLElement).innerText || "").trim();
+        const label =
+          (el as HTMLElement).getAttribute("aria-label") ||
+          txt ||
+          (el as HTMLElement).getAttribute("name") ||
+          "";
+        const lower = label.toLowerCase();
+        if (!lower) return;
+
+        if (
+          lower.includes("forgot") ||
+          lower.includes("reset") ||
+          lower.includes("trouble") ||
+          lower.includes("can't sign in")
+        ) {
+          add("reset_link", el, label);
+        }
+
+        if (
+          lower.includes("send") ||
+          lower.includes("submit") ||
+          lower.includes("continue") ||
+          lower.includes("next")
+        ) {
+          add("submit_button", el, label);
+        }
+      });
+
+      return out.slice(0, 20);
     });
   }
 

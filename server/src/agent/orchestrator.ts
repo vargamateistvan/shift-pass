@@ -57,6 +57,9 @@ export async function runRotation(
       phase: "requesting_reset",
       goal:
         `Trigger a password reset for the account "${req.email}". ` +
+        `Prioritize elements listed under Reset candidates and use precise clicks on their coordinates. ` +
+        `Order of operations: (1) open sign-in if needed, (2) click forgot/reset link, ` +
+        `(3) focus email input, (4) type "${req.email}", (5) click submit/send/continue. ` +
         `Find a "Sign in" / "Log in" page if needed, then a "Forgot password" / ` +
         `"Reset password" link, enter the email "${req.email}", and submit so a ` +
         `reset email is sent. Call finish with status "done" once the site confirms ` +

@@ -183,15 +183,29 @@ async function observation(browser: BrowserSession): Promise<{
   imageBase64: string;
   text: string;
 }> {
-  const [shot, els] = await Promise.all([
+  const [shot, els, hints] = await Promise.all([
     browser.screenshotBase64(),
     browser.interactiveElements(),
+    browser.resetHints(),
   ]);
+
+  const interactiveSummary = els
+    .map(
+      (e) =>
+        `${e.tag}${e.type ? `[${e.type}]` : ""}:"${e.text}"@(${e.x},${e.y})`,
+    )
+    .join(", ");
+
+  const hintSummary = hints
+    .map((h) => `${h.kind}:"${h.text}"@(${h.x},${h.y})`)
+    .join(", ");
+
   return {
     imageBase64: shot,
     text:
       `Current URL: ${browser.url()}\n` +
-      `Interactive elements: ${els.map((e) => `${e.tag}${e.type ? `[${e.type}]` : ""}:"${e.text}"`).join(", ")}`,
+      `Interactive elements: ${interactiveSummary}\n` +
+      `Reset candidates: ${hintSummary || "none"}`,
   };
 }
 
