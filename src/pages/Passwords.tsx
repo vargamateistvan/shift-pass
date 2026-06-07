@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useState, type ChangeEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/useAuth";
 import {
+  getBackgroundRotationJob,
   listBackgroundRotationJobs,
   startBackgroundRotation,
   type BackgroundRotationJob,
@@ -166,6 +167,7 @@ export function Passwords() {
   const [failedKey, setFailedKey] = useState<string | null>(null);
   const [trackedJobs, setTrackedJobs] =
     useState<Record<string, string>>(loadTrackedJobs);
+  const trackedJobsRef = useRef(trackedJobs);
   const [rowJobs, setRowJobs] = useState<Record<string, BackgroundRotationJob>>(
     {},
   );
@@ -186,6 +188,8 @@ export function Passwords() {
   );
 
   useEffect(() => {
+    trackedJobsRef.current = trackedJobs;
+
     if (typeof localStorage === "undefined") {
       return;
     }
@@ -210,8 +214,49 @@ export function Passwords() {
         return;
       }
 
+      const trackedPairs = await Promise.all(
+        entries.map(async (entry) => {
+          const key = entryKey(entry);
+          const jobId = trackedJobsRef.current[key];
+          if (!jobId) {
+            return null;
+          }
+
+          try {
+            const job = await getBackgroundRotationJob(
+              jobId,
+              controller.signal,
+            );
+            return [key, job, entry] as const;
+          } catch {
+            return null;
+          }
+        }),
+      );
+
+      if (cancelled) {
+        return;
+      }
+
+      const trackedJobsByKey = Object.fromEntries(
+        trackedPairs
+          .filter(
+            (
+              result,
+            ): result is readonly [
+              string,
+              BackgroundRotationJob,
+              GooglePasswordEntry,
+            ] => Boolean(result),
+          )
+          .map(([key, job]) => [key, job]),
+      );
+      const unresolvedEntries = entries.filter(
+        (entry) => !trackedJobsByKey[entryKey(entry)],
+      );
+
       const entryGroups = new Map<string, GooglePasswordEntry[]>();
-      for (const entry of entries) {
+      for (const entry of unresolvedEntries) {
         const host = hostFromUrl(entry.url);
         if (!host) {
           continue;
@@ -244,10 +289,10 @@ export function Passwords() {
         return;
       }
 
-      const nextJobs = Object.fromEntries(
+      const fallbackJobs = Object.fromEntries(
         jobs
           .map((job) => {
-            const match = entries.find(
+            const match = unresolvedEntries.find(
               (entry) =>
                 hostFromUrl(entry.url) === hostFromUrl(job.url) &&
                 entry.username === job.email,
@@ -263,6 +308,10 @@ export function Passwords() {
               Boolean(result),
           ),
       );
+      const nextJobs = {
+        ...fallbackJobs,
+        ...trackedJobsByKey,
+      };
       setRowJobs(nextJobs);
       setTrackedJobs(trackActiveJobs(nextJobs));
 
