@@ -57,18 +57,19 @@ export async function runRotation(
       phase: "requesting_reset",
       accountEmail: req.email,
       goal:
-        `Trigger a password reset for the account "${req.email}". ` +
-        `Prioritize elements listed under Reset candidates and use precise clicks on their coordinates. ` +
-        `Mandatory order: (1) locate and click forgot/reset (or equivalent) first, ` +
-        `(2) then locate email/username input and enter "${req.email}", ` +
-        `(3) then submit/send/continue to request the reset email. ` +
-        `If reset control is not visible, open sign-in first and retry step (1). ` +
-        `Order of operations: (1) open sign-in if needed, (2) click forgot/reset link, ` +
-        `(3) focus email input, (4) type "${req.email}", (5) click submit/send/continue. ` +
-        `Find a "Sign in" / "Log in" page if needed, then a "Forgot password" / ` +
-        `"Reset password" link, enter the email "${req.email}", and submit so a ` +
-        `reset email is sent. Call finish with status "done" once the site confirms ` +
-        `the email was sent. Do NOT set a new password in this step.`,
+        `Request a password-reset email for account "${req.email}". ` +
+        `Primary objective: complete the reset-request step and reach a clear confirmation state ` +
+        `(for example: "email sent", "check your inbox", "reset link sent", "verification email sent"). ` +
+        `Required sequence: ` +
+        `(1) locate and click Forgot password / Reset password (or equivalent), ` +
+        `(2) enter "${req.email}" into the email/username field, ` +
+        `(3) submit via Send / Continue / Next / Submit. ` +
+        `If reset controls are hidden, open Sign in / Log in first, then retry step (1). ` +
+        `Use Reset candidates and their coordinates as your first choice when available. ` +
+        `Do not keep clicking the same element repeatedly; if blocked by CAPTCHA, 2FA, login wall, ` +
+        `or no recoverable reset path, finish with status "needs_human" and a specific reason. ` +
+        `Only finish with status "done" after the reset request has clearly been accepted by the site. ` +
+        `Do NOT set a new password in this step.`,
     });
     if (goalA.status === "needs_human") return human(stream, goalA.summary);
     if (goalA.status === "exhausted")

@@ -134,6 +134,85 @@ export class BrowserSession {
       return false;
     };
 
+    const tryClickScored = async (
+      kind: "reset" | "submit",
+      label: string,
+      maxCandidates = 6,
+    ): Promise<boolean> => {
+      const candidates = await this.page.evaluate((k) => {
+        const nodes = document.querySelectorAll(
+          'a, button, input, [role="button"], [role="link"]',
+        );
+        const out: Array<{ x: number; y: number; score: number; text: string }> = [];
+
+        nodes.forEach((node) => {
+          const el = node as HTMLElement;
+          const rect = el.getBoundingClientRect();
+          if (rect.width === 0 || rect.height === 0) return;
+
+          const text = (
+            el.innerText ||
+            el.getAttribute("aria-label") ||
+            el.getAttribute("name") ||
+            el.getAttribute("id") ||
+            ""
+          )
+            .trim()
+            .toLowerCase();
+          const href = (el.getAttribute("href") || "").toLowerCase();
+          const id = (el.getAttribute("id") || "").toLowerCase();
+          const cls = (el.getAttribute("class") || "").toLowerCase();
+          const type = (el.getAttribute("type") || "").toLowerCase();
+          const blob = [text, href, id, cls, type].join(" ");
+
+          let score = 0;
+          if (k === "reset") {
+            if (blob.includes("forgot")) score += 8;
+            if (blob.includes("reset")) score += 7;
+            if (blob.includes("recover")) score += 5;
+            if (blob.includes("trouble")) score += 4;
+            if (blob.includes("password")) score += 3;
+            if (href.includes("forgot") || href.includes("reset")) score += 4;
+          } else {
+            if (blob.includes("submit")) score += 7;
+            if (blob.includes("send")) score += 6;
+            if (blob.includes("continue")) score += 5;
+            if (blob.includes("next")) score += 4;
+            if (blob.includes("request")) score += 4;
+            if (blob.includes("email")) score += 2;
+            if (type === "submit") score += 5;
+          }
+
+          if (score > 0) {
+            out.push({
+              x: Math.round(rect.left + rect.width / 2),
+              y: Math.round(rect.top + rect.height / 2),
+              score,
+              text: text.slice(0, 80),
+            });
+          }
+        });
+
+        out.sort((a, b) => b.score - a.score);
+        return out.slice(0, 12);
+      }, kind);
+
+      for (let i = 0; i < Math.min(candidates.length, maxCandidates); i += 1) {
+        const c = candidates[i];
+        try {
+          await this.click(c.x, c.y);
+          notes.push(
+            `clicked ${label}${i > 0 ? ` #${i + 1}` : ""} (${c.text || "scored candidate"})`,
+          );
+          return true;
+        } catch {
+          /* try next scored candidate */
+        }
+      }
+
+      return false;
+    };
+
     const resetByText = this.page
       .locator('a, button, [role="button"], [role="link"]')
       .filter({ hasText: /forgot|reset|trouble|can't sign in|recover/i });
@@ -151,7 +230,8 @@ export class BrowserSession {
 
     let clickedReset =
       (await tryClickCandidates(resetByText, "reset trigger")) ||
-      (await tryClickCandidates(resetByAria, "reset trigger (aria)"));
+      (await tryClickCandidates(resetByAria, "reset trigger (aria)")) ||
+      (await tryClickScored("reset", "reset trigger (scored)"));
 
     // If reset controls are hidden behind a sign-in entry point, open it first.
     if (!clickedReset) {
@@ -170,7 +250,8 @@ export class BrowserSession {
           (await tryClickCandidates(
             resetByAria,
             "reset trigger (aria) after sign-in",
-          ));
+          )) ||
+          (await tryClickScored("reset", "reset trigger (scored) after sign-in"));
       }
     }
 
@@ -246,7 +327,8 @@ export class BrowserSession {
 
     const clickedSubmit =
       (await tryClickCandidates(submitByText, "submit button")) ||
-      (await tryClickCandidates(submitByAria, "submit button (aria)"));
+      (await tryClickCandidates(submitByAria, "submit button (aria)")) ||
+      (await tryClickScored("submit", "submit button (scored)"));
     if (!clickedSubmit) {
       notes.push("submit button not found");
     }
