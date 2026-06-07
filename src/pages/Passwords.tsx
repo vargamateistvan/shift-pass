@@ -145,17 +145,12 @@ function formatRowStatus(status: BackgroundRotationJob["status"]): string {
   }
 }
 
-function mergeTrackedJobs(
-  current: Record<string, string>,
+function trackActiveJobs(
   jobs: Record<string, BackgroundRotationJob>,
 ): Record<string, string> {
-  const next = { ...current };
-
-  for (const [key, job] of Object.entries(jobs)) {
-    next[key] = job.id;
-  }
-
-  return next;
+  return Object.fromEntries(
+    Object.entries(jobs).map(([key, job]) => [key, job.id]),
+  );
 }
 
 export function Passwords() {
@@ -202,15 +197,19 @@ export function Passwords() {
   }, [trackedJobs]);
 
   useEffect(() => {
-    if (entries.length === 0) {
-      return;
-    }
-
     let cancelled = false;
     let timer: number | null = null;
     const controller = new AbortController();
 
     const refresh = async () => {
+      if (entries.length === 0) {
+        if (!cancelled) {
+          setRowJobs({});
+          setTrackedJobs({});
+        }
+        return;
+      }
+
       const jobs = await listBackgroundRotationJobs(
         { activeOnly: true },
         controller.signal,
@@ -238,7 +237,7 @@ export function Passwords() {
           ),
       );
       setRowJobs(nextJobs);
-      setTrackedJobs((prev) => mergeTrackedJobs(prev, nextJobs));
+      setTrackedJobs(trackActiveJobs(nextJobs));
 
       const hasActiveJob = Object.values(nextJobs).some(
         (job) => !isTerminalJob(job.status),
