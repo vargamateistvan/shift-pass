@@ -47,6 +47,20 @@ export interface BackgroundRotationJobFilters {
   limit?: number;
 }
 
+export interface BackgroundRotationJobListMeta {
+  requestedLimit: number | null;
+  appliedLimit: number;
+  matchedCount: number;
+  returnedCount: number;
+  truncated: boolean;
+  defaultLimitApplied: boolean;
+}
+
+export interface BackgroundRotationJobListResult {
+  jobs: BackgroundRotationJob[];
+  meta: BackgroundRotationJobListMeta;
+}
+
 function serverError(status: number, detail: string): Error {
   return new Error("Server error " + status + (detail ? ": " + detail : ""));
 }
@@ -170,10 +184,10 @@ export async function getBackgroundRotationJobs(
   return data.jobs;
 }
 
-export async function listBackgroundRotationJobs(
+export async function listBackgroundRotationJobsDetailed(
   filters: BackgroundRotationJobFilters = {},
   signal?: AbortSignal,
-): Promise<BackgroundRotationJob[]> {
+): Promise<BackgroundRotationJobListResult> {
   const params = new URLSearchParams();
 
   if (filters.email) {
@@ -207,11 +221,17 @@ export async function listBackgroundRotationJobs(
   }
 
   const query = params.toString();
-  const data = await jsonFetch<{ jobs: BackgroundRotationJob[] }>(
+  return jsonFetch<BackgroundRotationJobListResult>(
     query ? `/api/rotate/background?${query}` : "/api/rotate/background",
     { method: "GET" },
     signal,
   );
+}
 
+export async function listBackgroundRotationJobs(
+  filters: BackgroundRotationJobFilters = {},
+  signal?: AbortSignal,
+): Promise<BackgroundRotationJob[]> {
+  const data = await listBackgroundRotationJobsDetailed(filters, signal);
   return data.jobs;
 }

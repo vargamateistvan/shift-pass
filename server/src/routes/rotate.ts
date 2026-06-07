@@ -75,7 +75,7 @@ rotateRouter.get("/rotate/background", (req, res) => {
   const limit =
     typeof req.query.limit === "string" ? Number(req.query.limit) : undefined;
 
-  const jobs = listBackgroundRotations({
+  const result = listBackgroundRotations({
     email,
     host,
     hosts,
@@ -85,7 +85,7 @@ rotateRouter.get("/rotate/background", (req, res) => {
     limit: Number.isFinite(limit) ? limit : undefined,
   });
 
-  res.json({ jobs });
+  res.json(result);
 });
 
 rotateRouter.get("/rotate/background/batch", (req, res) => {

@@ -87,6 +87,20 @@ export interface BackgroundJobFilters {
   limit?: number;
 }
 
+export interface BackgroundJobListMeta {
+  requestedLimit: number | null;
+  appliedLimit: number;
+  matchedCount: number;
+  returnedCount: number;
+  truncated: boolean;
+  defaultLimitApplied: boolean;
+}
+
+export interface BackgroundJobListResult {
+  jobs: BackgroundJobSnapshot[];
+  meta: BackgroundJobListMeta;
+}
+
 function hostFromUrl(url: string): string {
   try {
     return new URL(url).hostname.replace(/^www\./, "").toLowerCase();
@@ -310,7 +324,7 @@ export function getBackgroundRotations(
 
 export function listBackgroundRotations(
   filters: BackgroundJobFilters = {},
-): BackgroundJobSnapshot[] {
+): BackgroundJobListResult {
   const normalizedHosts = new Set(
     (filters.hosts ?? []).map((host) => host.toLowerCase()),
   );
@@ -324,9 +338,12 @@ export function listBackgroundRotations(
       : filters.activeOnly
         ? DEFAULT_ACTIVE_BACKGROUND_JOB_LIST_LIMIT
         : MAX_BACKGROUND_JOB_LIST_LIMIT;
+  const defaultLimitApplied = !(
+    typeof filters.limit === "number" && filters.limit > 0
+  );
   const limit = Math.min(requestedLimit, MAX_BACKGROUND_JOB_LIST_LIMIT);
 
-  return [...jobs.values()]
+  const matchedJobs = [...jobs.values()]
     .filter((job) => {
       if (filters.email && job.email !== filters.email) {
         return false;
@@ -358,9 +375,21 @@ export function listBackgroundRotations(
 
       return true;
     })
-    .sort((left, right) => right.updatedAt.localeCompare(left.updatedAt))
-    .slice(0, limit)
-    .map((job) => snapshot(job.id));
+    .sort((left, right) => right.updatedAt.localeCompare(left.updatedAt));
+
+  const listedJobs = matchedJobs.slice(0, limit).map((job) => snapshot(job.id));
+
+  return {
+    jobs: listedJobs,
+    meta: {
+      requestedLimit: filters.limit ?? null,
+      appliedLimit: limit,
+      matchedCount: matchedJobs.length,
+      returnedCount: listedJobs.length,
+      truncated: matchedJobs.length > listedJobs.length,
+      defaultLimitApplied,
+    },
+  };
 }
 
 function snapshot(jobId: string): BackgroundJobSnapshot {
