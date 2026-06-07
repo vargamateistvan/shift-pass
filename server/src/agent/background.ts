@@ -28,6 +28,7 @@ export interface BackgroundJobSnapshot {
   email: string;
   status: BackgroundJobStatus;
   message: string;
+  latestScreenshot: string | null;
   terminalSummary: string | null;
   createdAt: string;
   updatedAt: string;
@@ -131,6 +132,7 @@ function reviveJob(job: BackgroundJobRecord): BackgroundJobRecord {
   const normalized: BackgroundJobRecord = {
     ...job,
     recentEvents: Array.isArray(job.recentEvents) ? [...job.recentEvents] : [],
+    latestScreenshot: job.latestScreenshot ?? null,
     terminalSummary: job.terminalSummary ?? null,
     result: job.result ?? null,
     error: job.error ?? null,
@@ -216,6 +218,9 @@ class BackgroundJobStream implements ProgressStream {
         job.terminalSummary = event.reason;
         job.recentEvents.push({ type: "needs_human", text: event.message });
         break;
+      case "screenshot":
+        job.latestScreenshot = event.dataUrl;
+        break;
       case "done":
         job.status = "done";
         job.message = `Completed for ${event.site}`;
@@ -256,6 +261,7 @@ export function startBackgroundRotation(
     email: req.email,
     status: "queued",
     message: "Queued",
+    latestScreenshot: null,
     terminalSummary: null,
     createdAt: startedAt,
     updatedAt: startedAt,
@@ -404,6 +410,7 @@ function snapshot(jobId: string): BackgroundJobSnapshot {
     email: job.email,
     status: job.status,
     message: job.message,
+    latestScreenshot: job.latestScreenshot,
     terminalSummary: job.terminalSummary,
     createdAt: job.createdAt,
     updatedAt: job.updatedAt,

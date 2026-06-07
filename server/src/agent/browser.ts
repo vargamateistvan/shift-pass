@@ -2,6 +2,7 @@ import {
   chromium,
   type Browser,
   type BrowserContext,
+  type Locator,
   type Page,
 } from "playwright";
 
@@ -108,24 +109,76 @@ export class BrowserSession {
   async kickoffResetFlow(email: string): Promise<string[]> {
     const notes: string[] = [];
 
-    const resetTrigger = this.page
-      .locator('a, button, [role="button"], [role="link"]')
-      .filter({ hasText: /forgot|reset|trouble|can't sign in/i })
-      .first();
-
-    if ((await resetTrigger.count()) > 0) {
-      try {
-        await resetTrigger.click({ timeout: 2000 });
-        notes.push("clicked reset trigger");
-        await this.settle();
-      } catch {
-        /* continue with next heuristics */
+    const tryClickCandidates = async (
+      locator: Locator,
+      label: string,
+      maxCandidates = 6,
+    ): Promise<boolean> => {
+      const total = Math.min(await locator.count(), maxCandidates);
+      for (let i = 0; i < total; i += 1) {
+        const candidate = locator.nth(i);
+        try {
+          await candidate.scrollIntoViewIfNeeded({ timeout: 1000 });
+        } catch {
+          /* best effort */
+        }
+        try {
+          await candidate.click({ timeout: 1800 });
+          notes.push(`clicked ${label}${i > 0 ? ` #${i + 1}` : ""}`);
+          await this.settle();
+          return true;
+        } catch {
+          /* try next candidate */
+        }
       }
+      return false;
+    };
+
+    const resetByText = this.page
+      .locator('a, button, [role="button"], [role="link"]')
+      .filter({ hasText: /forgot|reset|trouble|can't sign in|recover/i });
+    const resetByAria = this.page.locator(
+      [
+        '[aria-label*="forgot" i]',
+        '[aria-label*="reset" i]',
+        '[aria-label*="recover" i]',
+      ].join(", "),
+    );
+
+    const signInTriggers = this.page
+      .locator('a, button, [role="button"], [role="link"]')
+      .filter({ hasText: /sign in|log in|login|account/i });
+
+    let clickedReset =
+      (await tryClickCandidates(resetByText, "reset trigger")) ||
+      (await tryClickCandidates(resetByAria, "reset trigger (aria)"));
+
+    // If reset controls are hidden behind a sign-in entry point, open it first.
+    if (!clickedReset) {
+      const clickedSignIn = await tryClickCandidates(signInTriggers, "sign-in trigger", 3);
+      if (clickedSignIn) {
+        notes.push("opened sign-in view");
+        clickedReset =
+          (await tryClickCandidates(resetByText, "reset trigger after sign-in")) ||
+          (await tryClickCandidates(resetByAria, "reset trigger (aria) after sign-in"));
+      }
+    }
+
+    if (!clickedReset) {
+      notes.push("reset trigger not found");
+      return notes;
     }
 
     const emailInput = this.page
       .locator(
-        'input[type="email"], input[name*="email" i], input[id*="email" i], input[autocomplete="email"]',
+        [
+          'input[type="email"]',
+          'input[name*="email" i]',
+          'input[id*="email" i]',
+          'input[autocomplete="email"]',
+          'input[name*="user" i]',
+          'input[id*="user" i]',
+        ].join(", "),
       )
       .first();
 
@@ -161,23 +214,31 @@ export class BrowserSession {
       } catch {
         /* continue with next heuristics */
       }
+    } else {
+      notes.push("email input not found");
+      return notes;
     }
 
-    const submit = this.page
+    const submitByText = this.page
       .locator(
         'button, input[type="submit"], input[type="button"], [role="button"]',
       )
-      .filter({ hasText: /send|submit|continue|next|reset|email/i })
-      .first();
+      .filter({ hasText: /send|submit|continue|next|reset|email|request/i });
+    const submitByAria = this.page.locator(
+      [
+        '[aria-label*="send" i]',
+        '[aria-label*="submit" i]',
+        '[aria-label*="continue" i]',
+        '[aria-label*="next" i]',
+        '[aria-label*="request" i]',
+      ].join(", "),
+    );
 
-    if ((await submit.count()) > 0) {
-      try {
-        await submit.click({ timeout: 2000 });
-        notes.push("clicked submit button");
-        await this.settle();
-      } catch {
-        /* continue with model loop */
-      }
+    const clickedSubmit =
+      (await tryClickCandidates(submitByText, "submit button")) ||
+      (await tryClickCandidates(submitByAria, "submit button (aria)"));
+    if (!clickedSubmit) {
+      notes.push("submit button not found");
     }
 
     return notes;

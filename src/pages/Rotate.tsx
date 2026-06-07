@@ -269,6 +269,14 @@ function RotateForm() {
                   </span>
                 </div>
               )}
+              {backgroundJob.latestScreenshot && (
+                <div className="rotate-screenshot rotate-background-preview">
+                  <img
+                    src={backgroundJob.latestScreenshot}
+                    alt="Background agent browser view"
+                  />
+                </div>
+              )}
               <ul className="rotate-log rotate-background-log">
                 {backgroundJob.recentEvents.map((event) => (
                   <li

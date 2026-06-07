@@ -59,6 +59,10 @@ export async function runRotation(
       goal:
         `Trigger a password reset for the account "${req.email}". ` +
         `Prioritize elements listed under Reset candidates and use precise clicks on their coordinates. ` +
+        `Mandatory order: (1) locate and click forgot/reset (or equivalent) first, ` +
+        `(2) then locate email/username input and enter "${req.email}", ` +
+        `(3) then submit/send/continue to request the reset email. ` +
+        `If reset control is not visible, open sign-in first and retry step (1). ` +
         `Order of operations: (1) open sign-in if needed, (2) click forgot/reset link, ` +
         `(3) focus email input, (4) type "${req.email}", (5) click submit/send/continue. ` +
         `Find a "Sign in" / "Log in" page if needed, then a "Forgot password" / ` +
