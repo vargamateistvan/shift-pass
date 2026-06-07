@@ -70,9 +70,9 @@ function parseGooglePasswordsCsv(csv: string): GooglePasswordEntry[] {
 
 function hostFromUrl(url: string): string {
   try {
-    return new URL(url).hostname.replace(/^www\./, "");
+    return new URL(url).hostname.replace(/^www\./, "").toLowerCase();
   } catch {
-    return url;
+    return url.toLowerCase();
   }
 }
 
@@ -210,10 +210,35 @@ export function Passwords() {
         return;
       }
 
-      const jobs = await listBackgroundRotationJobs(
-        { activeOnly: true, limit: Math.max(entries.length * 3, 25) },
-        controller.signal,
+      const entryGroups = new Map<string, GooglePasswordEntry[]>();
+      for (const entry of entries) {
+        const host = hostFromUrl(entry.url);
+        if (!host) {
+          continue;
+        }
+
+        const group = entryGroups.get(host);
+        if (group) {
+          group.push(entry);
+        } else {
+          entryGroups.set(host, [entry]);
+        }
+      }
+
+      const jobGroups = await Promise.all(
+        [...entryGroups.entries()].map(async ([host, hostEntries]) =>
+          listBackgroundRotationJobs(
+            {
+              activeOnly: true,
+              host,
+              limit: Math.max(hostEntries.length * 3, 10),
+            },
+            controller.signal,
+          ),
+        ),
       );
+
+      const jobs = jobGroups.flat();
 
       if (cancelled) {
         return;
