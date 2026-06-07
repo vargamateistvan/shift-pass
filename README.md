@@ -66,7 +66,14 @@ yarn server           # backend on :8787 (the SPA proxies /api to it)
 4. **Create credentials**: APIs & Services → Credentials → Create Credentials →
    **OAuth client ID** → Application type **Web application**.
    - Authorized JavaScript origins: `http://localhost:5173`
+
+- Add production origin too when deployed: `https://shift-pass.vercel.app`
+
 5. Copy the generated **Client ID**.
+
+If you see `SERVICE_DISABLED` or `accessNotConfigured` errors from
+`gmail.googleapis.com`, the Gmail API is disabled for the project backing your
+OAuth client. Enable it and wait a few minutes for propagation before retrying.
 
 ## Local development
 

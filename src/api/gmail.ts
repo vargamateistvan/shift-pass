@@ -36,12 +36,40 @@ async function authedFetch(
   });
   if (!res.ok) {
     let detail = "";
+    let reason = "";
+    let activationUrl = "";
+    let consumerProject = "";
     try {
       const json = await res.json();
       detail = json?.error?.message ?? "";
+      reason = json?.error?.details?.find(
+        (d: { reason?: string }) => typeof d?.reason === "string",
+      )?.reason;
+      activationUrl = json?.error?.details?.find(
+        (d: { metadata?: { activationUrl?: string } }) =>
+          typeof d?.metadata?.activationUrl === "string",
+      )?.metadata?.activationUrl;
+      consumerProject = json?.error?.details?.find(
+        (d: { metadata?: { consumer?: string } }) =>
+          typeof d?.metadata?.consumer === "string",
+      )?.metadata?.consumer;
     } catch {
       /* ignore */
     }
+
+    if (reason === "SERVICE_DISABLED") {
+      throw new Error(
+        [
+          "Gmail API is disabled for the Google Cloud project used by your OAuth client.",
+          consumerProject ? `Project: ${consumerProject}.` : "",
+          activationUrl ? `Enable it here: ${activationUrl}.` : "",
+          "After enabling, wait a few minutes and sign in again to refresh the token.",
+        ]
+          .filter(Boolean)
+          .join(" "),
+      );
+    }
+
     throw new Error(
       `Gmail API error ${res.status}${detail ? `: ${detail}` : ""}`,
     );
