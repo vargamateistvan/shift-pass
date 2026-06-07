@@ -267,6 +267,13 @@ h2 {
   font-size: 1.05rem;
 }
 
+.landing-review-note {
+  margin: -0.9rem auto 1.2rem;
+  max-width: 620px;
+  font-size: 0.9rem;
+  color: var(--muted);
+}
+
 .features {
   list-style: none;
   padding: 0;
@@ -301,6 +308,41 @@ h2 {
 .feature-icon {
   font-size: 1.25rem;
   line-height: 1;
+}
+
+.landing-details {
+  text-align: left;
+  margin: 0 auto 2rem;
+  max-width: 700px;
+  padding: 1rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+}
+
+.landing-details h2 {
+  margin: 0 0 0.9rem;
+  font-size: 1.2rem;
+}
+
+.landing-steps {
+  list-style: decimal;
+  margin: 0;
+  padding-left: 1.15rem;
+  display: grid;
+  gap: 0.7rem;
+}
+
+.landing-step h3 {
+  margin: 0;
+  font-size: 0.95rem;
+}
+
+.landing-step p {
+  margin: 0.2rem 0 0;
+  color: var(--muted);
+  line-height: 1.5;
 }
 
 /* ---------- Inbox / list ---------- */
