@@ -48,6 +48,23 @@ Google Password Manager CSV rows.
   discovery is truncated and skips fallback queries entirely when there are no
   unresolved host entries left.
 
+### Manual verification
+
+1. Import a Google Password Manager CSV on the Password page and start a
+   background run from one row.
+2. Refresh the page while that run is still active and confirm the same row
+   reconnects to the existing job instead of creating a duplicate one.
+3. Add duplicate CSV rows for the same host and username, start or recover
+   multiple jobs, and confirm one fallback-discovered job does not attach to
+   more than one row.
+4. Simulate a stale tracked job id by removing or invalidating a saved job and
+   confirm the row does not disappear immediately, then ages out after the
+   retry grace window.
+5. Force enough matching active jobs to exceed the server-side list cap and
+   confirm the Password page shows the truncated-discovery warning.
+6. Leave the page open during truncated discovery and confirm refreshes slow
+   down compared with the normal active-job polling cadence.
+
 See [`server/README.md`](./server/README.md) for full setup. Quick start:
 
 ```bash

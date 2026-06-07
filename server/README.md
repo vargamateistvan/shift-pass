@@ -88,3 +88,17 @@ recover row-level progress after refreshes or server restarts.
 3. Enter a test site you control + the account email, click **Rotate**.
 4. Watch the live agent log and screenshots; with `DRY_RUN=true` the new
    password is filled but not submitted.
+
+## Manual verification for Password page background jobs
+
+1. Import a CSV in the SPA Password page and start a background job from one
+   row.
+2. Refresh the page and confirm the frontend reconnects to the existing job via
+   the stored job id.
+3. Create duplicate rows with the same host and username and confirm fallback
+   matching stays one-to-one rather than reusing the same discovered job for
+   multiple rows.
+4. Delete or invalidate a persisted job id and confirm the frontend retries it
+   briefly before dropping the stale mapping.
+5. Seed enough active jobs to hit the list cap and confirm the list response is
+   marked truncated and the SPA shows the warning banner.
