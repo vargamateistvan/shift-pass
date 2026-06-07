@@ -427,6 +427,65 @@ h2 {
   gap: 0.5rem;
 }
 
+/* ---------- Legal pages ---------- */
+.legal-page {
+  display: grid;
+  gap: 1rem;
+}
+
+.legal-page h1 {
+  margin: 0;
+}
+
+.legal-meta {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.legal-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1rem 1.1rem;
+  box-shadow: var(--shadow-sm);
+}
+
+.legal-card h2 {
+  margin: 0 0 0.5rem;
+  font-size: 1.05rem;
+}
+
+.legal-card p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.55;
+}
+
+.legal-list {
+  margin: 0;
+  padding-left: 1.15rem;
+  color: var(--muted);
+  line-height: 1.55;
+}
+
+.site-footer {
+  padding: 0.9rem 1.5rem 1.4rem;
+  text-align: center;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.site-footer a {
+  color: var(--muted);
+  text-decoration: none;
+  transition: color 0.15s;
+}
+
+.site-footer a:hover {
+  color: var(--text);
+}
+
 /* ---------- Compose form ---------- */
 .compose-form {
   display: grid;
