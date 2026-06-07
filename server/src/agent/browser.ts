@@ -43,11 +43,27 @@ export class BrowserSession {
   }
 
   async navigate(url: string): Promise<void> {
-    await this.page.goto(url, {
-      waitUntil: "domcontentloaded",
-      timeout: 30000,
-    });
-    await this.settle();
+    const targets = this.navigationTargets(url);
+    let lastError: unknown;
+
+    for (const target of targets) {
+      try {
+        await this.page.goto(target, {
+          waitUntil: "domcontentloaded",
+          timeout: 30000,
+        });
+        await this.settle();
+        return;
+      } catch (err) {
+        lastError = err;
+      }
+    }
+
+    const message =
+      lastError instanceof Error ? lastError.message : "Unknown connection error";
+    throw new Error(
+      `Connection error while opening ${url}. Tried: ${targets.join(", ")}. ${message}`,
+    );
   }
 
   async click(x: number, y: number): Promise<void> {
@@ -116,6 +132,42 @@ export class BrowserSession {
     } catch {
       /* networkidle is best-effort; ignore timeouts */
     }
+  }
+
+  /**
+   * Build a small set of safe URL fallbacks for common hostname/protocol issues.
+   * Example: https://www.example.com -> https://example.com -> http://example.com
+   */
+  private navigationTargets(rawUrl: string): string[] {
+    let parsed: URL;
+    try {
+      parsed = new URL(rawUrl);
+    } catch {
+      return [rawUrl];
+    }
+
+    const out = [parsed.toString()];
+    const hostNoWww = parsed.hostname.replace(/^www\./i, "");
+
+    if (hostNoWww !== parsed.hostname) {
+      const withoutWww = new URL(parsed.toString());
+      withoutWww.hostname = hostNoWww;
+      out.push(withoutWww.toString());
+    }
+
+    if (parsed.protocol === "https:") {
+      const httpUrl = new URL(parsed.toString());
+      httpUrl.protocol = "http:";
+      out.push(httpUrl.toString());
+
+      if (hostNoWww !== parsed.hostname) {
+        const httpNoWww = new URL(httpUrl.toString());
+        httpNoWww.hostname = hostNoWww;
+        out.push(httpNoWww.toString());
+      }
+    }
+
+    return [...new Set(out)];
   }
 
   async close(): Promise<void> {

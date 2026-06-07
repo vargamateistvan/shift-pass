@@ -1,7 +1,7 @@
 # ShiftPass — Auto-Rotate Agent (server)
 
 Backend for the one-click password rotation feature. A server-side AI agent
-(Anthropic Claude **computer-use**) drives a real headless browser to run a
+(Google Gemini) drives a real headless browser to run a
 site's forgot-password flow, reads the reset email through the Gmail API,
 opens the reset link, sets a freshly generated strong password, and stores it
 in an encrypted vault.
@@ -21,8 +21,8 @@ Edit `.env`:
 
 | Var                 | Purpose                                                                   |
 | ------------------- | ------------------------------------------------------------------------- |
-| `ANTHROPIC_API_KEY` | Required. Powers the computer-use agent.                                  |
-| `ANTHROPIC_MODEL`   | Claude model id (default `claude-sonnet-4-5`).                            |
+| `GEMINI_API_KEY`    | Required. Powers the Gemini agent.                                         |
+| `GEMINI_MODEL`      | Gemini model id (default `gemini-2.5-pro`).                               |
 | `VAULT_KEY`         | 64 hex chars (32 bytes) for AES-256-GCM. Generate below.                  |
 | `ALLOWED_DOMAINS`   | Comma-separated allowlist. Empty = allow any.                             |
 | `DRY_RUN`           | `true` (default) walks the flow but does **not** submit the new password. |

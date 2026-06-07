@@ -7,7 +7,7 @@ healthRouter.get("/health", (_req, res) => {
   res.json({
     status: "ok",
     dryRun: config.dryRun,
-    anthropicConfigured: Boolean(config.anthropicApiKey),
+    geminiConfigured: Boolean(config.geminiApiKey),
     vaultConfigured: Boolean(config.vaultKey),
     allowlist: config.allowedDomains,
   });

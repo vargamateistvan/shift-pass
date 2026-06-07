@@ -10,7 +10,7 @@
     "postinstall": "node -e \"if (process.env.VERCEL) { console.log('Skipping Playwright browser download on Vercel'); process.exit(0); }\" && playwright install chromium"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.32.1",
+    "@google/genai": "^1.19.0",
     "cors": "^2.8.5",
     "dotenv": "^16.4.7",
     "express": "^4.21.2",

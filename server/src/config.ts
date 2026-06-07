@@ -26,8 +26,8 @@ function parseAllowedDomains(value: string | undefined): string[] {
 
 export const config = {
   port: int(process.env.PORT, 8787),
-  anthropicApiKey: process.env.ANTHROPIC_API_KEY ?? "",
-  anthropicModel: process.env.ANTHROPIC_MODEL ?? "claude-sonnet-4-5",
+  geminiApiKey: process.env.GEMINI_API_KEY ?? "",
+  geminiModel: process.env.GEMINI_MODEL ?? "gemini-2.5-pro",
   vaultKey: process.env.VAULT_KEY ?? "",
   allowedDomains: parseAllowedDomains(process.env.ALLOWED_DOMAINS),
   dryRun: bool(process.env.DRY_RUN, true),

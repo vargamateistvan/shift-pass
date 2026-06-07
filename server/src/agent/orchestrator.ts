@@ -6,7 +6,7 @@ import { assertDomainAllowed, isValidEmail, parseUrl } from "../lib/guard.js";
 import type { RotateRequest } from "../types.js";
 import { BrowserSession } from "./browser.js";
 import { runAgentGoal } from "./loop.js";
-import { createAnthropic } from "../llm/anthropic.js";
+import { createGemini } from "../llm/gemini.js";
 import { pollForResetEmail } from "../gmail/poller.js";
 import { generatePassword } from "../password/generate.js";
 import { saveEntry } from "../vault/vault.js";
@@ -23,12 +23,11 @@ export async function runRotation(
   try {
     if (!isValidEmail(req.email)) throw new Error("Invalid account email");
     if (!req.googleAccessToken) throw new Error("Missing Google access token");
-    if (!config.anthropicApiKey)
-      throw new Error("Server missing ANTHROPIC_API_KEY");
+    if (!config.geminiApiKey) throw new Error("Server missing GEMINI_API_KEY");
     const url = parseUrl(req.url);
     assertDomainAllowed(url);
 
-    const client = createAnthropic();
+    const client = createGemini();
     const newPassword = generatePassword();
     const startedAtMs = Date.now();
 
