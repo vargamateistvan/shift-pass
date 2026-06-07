@@ -211,7 +211,7 @@ export function Passwords() {
       }
 
       const jobs = await listBackgroundRotationJobs(
-        { activeOnly: true },
+        { activeOnly: true, limit: Math.max(entries.length * 3, 25) },
         controller.signal,
       );
 
@@ -223,7 +223,9 @@ export function Passwords() {
         jobs
           .map((job) => {
             const match = entries.find(
-              (entry) => entry.url === job.url && entry.username === job.email,
+              (entry) =>
+                hostFromUrl(entry.url) === hostFromUrl(job.url) &&
+                entry.username === job.email,
             );
             if (!match) {
               return null;

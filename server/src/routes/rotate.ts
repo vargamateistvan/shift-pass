@@ -57,18 +57,23 @@ rotateRouter.post("/rotate/background", (req, res) => {
 rotateRouter.get("/rotate/background", (req, res) => {
   const email =
     typeof req.query.email === "string" ? req.query.email : undefined;
+  const host = typeof req.query.host === "string" ? req.query.host : undefined;
   const url = typeof req.query.url === "string" ? req.query.url : undefined;
   const status =
     typeof req.query.status === "string"
       ? (req.query.status as BackgroundJobStatus)
       : undefined;
   const activeOnly = req.query.activeOnly === "true";
+  const limit =
+    typeof req.query.limit === "string" ? Number(req.query.limit) : undefined;
 
   const jobs = listBackgroundRotations({
     email,
+    host,
     url,
     status,
     activeOnly,
+    limit: Number.isFinite(limit) ? limit : undefined,
   });
 
   res.json({ jobs });

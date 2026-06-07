@@ -77,9 +77,19 @@ function encrypt(records: BackgroundJobRecord[]): EncFile {
 
 export interface BackgroundJobFilters {
   email?: string;
+  host?: string;
   url?: string;
   status?: BackgroundJobStatus;
   activeOnly?: boolean;
+  limit?: number;
+}
+
+function hostFromUrl(url: string): string {
+  try {
+    return new URL(url).hostname.replace(/^www\./, "").toLowerCase();
+  } catch {
+    return url.toLowerCase();
+  }
 }
 
 function decrypt(file: EncFile): BackgroundJobRecord[] {
@@ -278,9 +288,18 @@ export function getBackgroundRotation(
 export function listBackgroundRotations(
   filters: BackgroundJobFilters = {},
 ): BackgroundJobSnapshot[] {
+  const limit =
+    typeof filters.limit === "number" && filters.limit > 0
+      ? filters.limit
+      : Number.POSITIVE_INFINITY;
+
   return [...jobs.values()]
     .filter((job) => {
       if (filters.email && job.email !== filters.email) {
+        return false;
+      }
+
+      if (filters.host && hostFromUrl(job.url) !== filters.host.toLowerCase()) {
         return false;
       }
 
@@ -304,6 +323,7 @@ export function listBackgroundRotations(
       return true;
     })
     .sort((left, right) => right.updatedAt.localeCompare(left.updatedAt))
+    .slice(0, limit)
     .map((job) => snapshot(job.id));
 }
 

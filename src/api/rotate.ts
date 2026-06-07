@@ -39,9 +39,11 @@ export interface BackgroundRotationJob {
 
 export interface BackgroundRotationJobFilters {
   email?: string;
+  host?: string;
   url?: string;
   status?: BackgroundRotationJob["status"];
   activeOnly?: boolean;
+  limit?: number;
 }
 
 function serverError(status: number, detail: string): Error {
@@ -154,6 +156,10 @@ export async function listBackgroundRotationJobs(
     params.set("email", filters.email);
   }
 
+  if (filters.host) {
+    params.set("host", filters.host);
+  }
+
   if (filters.url) {
     params.set("url", filters.url);
   }
@@ -164,6 +170,10 @@ export async function listBackgroundRotationJobs(
 
   if (filters.activeOnly) {
     params.set("activeOnly", "true");
+  }
+
+  if (typeof filters.limit === "number" && filters.limit > 0) {
+    params.set("limit", String(filters.limit));
   }
 
   const query = params.toString();
