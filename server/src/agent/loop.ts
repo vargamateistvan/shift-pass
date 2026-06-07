@@ -12,9 +12,94 @@ export type GoalResult = {
   summary: string;
 };
 
+type GeminiResponse = {
+  text?: string;
+  functionCalls?: Array<{ name?: string; args?: Record<string, unknown> }>;
+  candidates?: Array<{ finishReason?: string }>;
+};
+
 function previewText(value: string, max = 240): string {
   const compact = value.replace(/\s+/g, " ").trim();
   return compact.length > max ? `${compact.slice(0, max)}...` : compact;
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function errorMessage(err: unknown): string {
+  return err instanceof Error ? err.message : String(err);
+}
+
+function isRetryableGeminiError(err: unknown): boolean {
+  const msg = errorMessage(err).toLowerCase();
+  return (
+    msg.includes("fetch failed") ||
+    msg.includes("econnreset") ||
+    msg.includes("etimedout") ||
+    msg.includes("enotfound") ||
+    msg.includes("network")
+  );
+}
+
+function mapGeminiError(err: unknown): Error {
+  const msg = errorMessage(err);
+  if (msg.toLowerCase().includes("fetch failed")) {
+    return new Error(
+      "Gemini request failed (network). Check outbound access to Google Gemini APIs and verify GEMINI_API_KEY.",
+    );
+  }
+  return err instanceof Error ? err : new Error(msg);
+}
+
+async function generateGeminiStep(
+  client: GoogleGenAI,
+  model: string,
+  planPrompt: string,
+  imageBase64: string,
+): Promise<GeminiResponse> {
+  let lastError: unknown;
+
+  for (let attempt = 1; attempt <= 3; attempt += 1) {
+    try {
+      const rawResp = await client.models.generateContent({
+        model,
+        contents: [
+          {
+            role: "user",
+            parts: [
+              { text: planPrompt },
+              {
+                inlineData: {
+                  mimeType: "image/png",
+                  data: imageBase64,
+                },
+              },
+            ],
+          },
+        ],
+        config: {
+          systemInstruction: SYSTEM,
+          tools: geminiTools,
+          temperature: 0.1,
+        },
+      } as never);
+
+      return rawResp as unknown as GeminiResponse;
+    } catch (err) {
+      lastError = err;
+      if (!isRetryableGeminiError(err) || attempt === 3) {
+        throw mapGeminiError(err);
+      }
+      log.warn("gemini request retry", {
+        attempt,
+        message: previewText(errorMessage(err), 160),
+      });
+      await sleep(250 * attempt);
+    }
+  }
+
+  throw mapGeminiError(lastError);
 }
 
 const SYSTEM = `You are ShiftPass, an autonomous browser agent that operates a 1280x800 web viewport via the "computer" tool.
@@ -64,38 +149,17 @@ export async function runAgentGoal(
       `Recent actions: ${recentActions.join(" | ") || "none"}\n` +
       `Choose the single best next action and call exactly one tool.`;
 
-    const rawResp = await client.models.generateContent({
-      model: config.geminiModel,
-      contents: [
-        {
-          role: "user",
-          parts: [
-            { text: planPrompt },
-            {
-              inlineData: {
-                mimeType: "image/png",
-                data: obs.imageBase64,
-              },
-            },
-          ],
-        },
-      ],
-      config: {
-        systemInstruction: SYSTEM,
-        tools: geminiTools,
-        temperature: 0.1,
-      },
-    } as never);
+    const resp = await generateGeminiStep(
+      client,
+      config.geminiModel,
+      planPrompt,
+      obs.imageBase64,
+    );
 
-    const resp = rawResp as unknown as {
-      text?: string;
-      functionCalls?: Array<{ name?: string; args?: Record<string, unknown> }>;
-      candidates?: Array<{ finishReason?: string }>;
-    };
-
-    const assistantText =
-      typeof resp.text === "string" ? resp.text.trim() : "";
-    const toolUses = Array.isArray(resp.functionCalls) ? resp.functionCalls : [];
+    const assistantText = typeof resp.text === "string" ? resp.text.trim() : "";
+    const toolUses = Array.isArray(resp.functionCalls)
+      ? resp.functionCalls
+      : [];
 
     log.info("agent model response", {
       phase: opts.phase,

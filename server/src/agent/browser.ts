@@ -60,7 +60,9 @@ export class BrowserSession {
     }
 
     const message =
-      lastError instanceof Error ? lastError.message : "Unknown connection error";
+      lastError instanceof Error
+        ? lastError.message
+        : "Unknown connection error";
     throw new Error(
       `Connection error while opening ${url}. Tried: ${targets.join(", ")}. ${message}`,
     );
