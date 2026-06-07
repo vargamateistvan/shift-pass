@@ -2,6 +2,7 @@ import { Router } from "express";
 import { SseStream } from "../lib/sse.js";
 import {
   getBackgroundRotation,
+  getBackgroundRotations,
   listBackgroundRotations,
   startBackgroundRotation,
 } from "../agent/background.js";
@@ -76,6 +77,22 @@ rotateRouter.get("/rotate/background", (req, res) => {
     limit: Number.isFinite(limit) ? limit : undefined,
   });
 
+  res.json({ jobs });
+});
+
+rotateRouter.get("/rotate/background/batch", (req, res) => {
+  const ids = Array.isArray(req.query.jobId)
+    ? req.query.jobId.filter((value): value is string => typeof value === "string")
+    : typeof req.query.jobId === "string"
+      ? [req.query.jobId]
+      : [];
+
+  if (ids.length === 0) {
+    res.status(400).json({ error: "At least one jobId is required" });
+    return;
+  }
+
+  const jobs = getBackgroundRotations(ids);
   res.json({ jobs });
 });
 

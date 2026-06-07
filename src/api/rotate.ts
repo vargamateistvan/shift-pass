@@ -146,6 +146,29 @@ export async function getBackgroundRotationJob(
   return data.job;
 }
 
+export async function getBackgroundRotationJobs(
+  jobIds: string[],
+  signal?: AbortSignal,
+): Promise<BackgroundRotationJob[]> {
+  const uniqueJobIds = [...new Set(jobIds.filter(Boolean))];
+  if (uniqueJobIds.length === 0) {
+    return [];
+  }
+
+  const params = new URLSearchParams();
+  for (const jobId of uniqueJobIds) {
+    params.append("jobId", jobId);
+  }
+
+  const data = await jsonFetch<{ jobs: BackgroundRotationJob[] }>(
+    `/api/rotate/background/batch?${params.toString()}`,
+    { method: "GET" },
+    signal,
+  );
+
+  return data.jobs;
+}
+
 export async function listBackgroundRotationJobs(
   filters: BackgroundRotationJobFilters = {},
   signal?: AbortSignal,

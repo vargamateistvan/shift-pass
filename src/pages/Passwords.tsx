@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/useAuth";
 import {
-  getBackgroundRotationJob,
+  getBackgroundRotationJobs,
   listBackgroundRotationJobs,
   startBackgroundRotation,
   type BackgroundRotationJob,
@@ -280,29 +280,56 @@ export function Passwords() {
         return;
       }
 
-      const trackedPairs = await Promise.all(
-        entries.map(async (entry) => {
+      const trackedEntries = entries
+        .map((entry) => {
           const key = entryKey(entry);
           const jobId = trackedJobsRef.current[key];
-          if (!jobId) {
-            return null;
+          return jobId ? { key, entry, jobId } : null;
+        })
+        .filter(
+          (
+            result,
+          ): result is {
+            key: string;
+            entry: GooglePasswordEntry;
+            jobId: string;
+          } => Boolean(result),
+        );
+
+      let trackedPairs: Array<
+        | { key: string; entry: GooglePasswordEntry; job: BackgroundRotationJob }
+        | { key: string; entry: GooglePasswordEntry; retryable: boolean }
+      >;
+
+      try {
+        const jobs = await getBackgroundRotationJobs(
+          trackedEntries.map((entry) => entry.jobId),
+          controller.signal,
+        );
+        const jobsById = Object.fromEntries(
+          jobs.map((job) => [job.id, job] as const),
+        );
+
+        trackedPairs = trackedEntries.map(({ key, entry, jobId }) => {
+          const job = jobsById[jobId];
+          if (job) {
+            return { key, entry, job };
           }
 
-          try {
-            const job = await getBackgroundRotationJob(
-              jobId,
-              controller.signal,
-            );
-            return { key, entry, job } as const;
-          } catch (error) {
-            return {
-              key,
-              entry,
-              retryable: shouldRetryTrackedJob(error),
-            } as const;
-          }
-        }),
-      );
+          return { key, entry, retryable: false };
+        });
+      } catch (error) {
+        if (cancelled || controller.signal.aborted) {
+          return;
+        }
+
+        const retryable = shouldRetryTrackedJob(error);
+        trackedPairs = trackedEntries.map(({ key, entry }) => ({
+          key,
+          entry,
+          retryable,
+        }));
+      }
 
       if (cancelled) {
         return;
@@ -313,10 +340,6 @@ export function Passwords() {
       const trackedJobsByKey: Record<string, BackgroundRotationJob> = {};
 
       for (const result of trackedPairs) {
-        if (!result) {
-          continue;
-        }
-
         if ("retryable" in result) {
           if (result.retryable) {
             graceTrackedKeys.add(result.key);

@@ -285,6 +285,26 @@ export function getBackgroundRotation(
   return jobs.has(jobId) ? snapshot(jobId) : null;
 }
 
+export function getBackgroundRotations(
+  jobIds: string[],
+): BackgroundJobSnapshot[] {
+  const seen = new Set<string>();
+
+  return jobIds
+    .filter((jobId) => {
+      if (seen.has(jobId)) {
+        return false;
+      }
+
+      seen.add(jobId);
+      return true;
+    })
+    .flatMap((jobId) => {
+      const job = getBackgroundRotation(jobId);
+      return job ? [job] : [];
+    });
+}
+
 export function listBackgroundRotations(
   filters: BackgroundJobFilters = {},
 ): BackgroundJobSnapshot[] {
