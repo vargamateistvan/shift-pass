@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState, type ChangeEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/useAuth";
 import {
-  getBackgroundRotationJob,
+  listBackgroundRotationJobs,
   startBackgroundRotation,
   type BackgroundRotationJob,
 } from "../api/rotate";
@@ -145,6 +145,19 @@ function formatRowStatus(status: BackgroundRotationJob["status"]): string {
   }
 }
 
+function mergeTrackedJobs(
+  current: Record<string, string>,
+  jobs: Record<string, BackgroundRotationJob>,
+): Record<string, string> {
+  const next = { ...current };
+
+  for (const [key, job] of Object.entries(jobs)) {
+    next[key] = job.id;
+  }
+
+  return next;
+}
+
 export function Passwords() {
   const navigate = useNavigate();
   const { getToken } = useAuth();
@@ -189,10 +202,7 @@ export function Passwords() {
   }, [trackedJobs]);
 
   useEffect(() => {
-    const relevantEntries = entries.filter(
-      (entry) => trackedJobs[entryKey(entry)],
-    );
-    if (relevantEntries.length === 0) {
+    if (entries.length === 0) {
       return;
     }
 
@@ -201,34 +211,9 @@ export function Passwords() {
     const controller = new AbortController();
 
     const refresh = async () => {
-      const nextEntries = entries.filter(
-        (entry) => trackedJobs[entryKey(entry)],
-      );
-      if (nextEntries.length === 0) {
-        if (!cancelled) {
-          setRowJobs({});
-        }
-        return;
-      }
-
-      const results = await Promise.all(
-        nextEntries.map(async (entry) => {
-          const key = entryKey(entry);
-          const jobId = trackedJobs[key];
-          if (!jobId) {
-            return null;
-          }
-
-          try {
-            const job = await getBackgroundRotationJob(
-              jobId,
-              controller.signal,
-            );
-            return [key, job] as const;
-          } catch {
-            return null;
-          }
-        }),
+      const jobs = await listBackgroundRotationJobs(
+        { activeOnly: true },
+        controller.signal,
       );
 
       if (cancelled) {
@@ -236,12 +221,24 @@ export function Passwords() {
       }
 
       const nextJobs = Object.fromEntries(
-        results.filter(
-          (result): result is readonly [string, BackgroundRotationJob] =>
-            Boolean(result),
-        ),
+        jobs
+          .map((job) => {
+            const match = entries.find(
+              (entry) => entry.url === job.url && entry.username === job.email,
+            );
+            if (!match) {
+              return null;
+            }
+
+            return [entryKey(match), job] as const;
+          })
+          .filter(
+            (result): result is readonly [string, BackgroundRotationJob] =>
+              Boolean(result),
+          ),
       );
       setRowJobs(nextJobs);
+      setTrackedJobs((prev) => mergeTrackedJobs(prev, nextJobs));
 
       const hasActiveJob = Object.values(nextJobs).some(
         (job) => !isTerminalJob(job.status),
@@ -260,7 +257,7 @@ export function Passwords() {
         globalThis.clearTimeout(timer);
       }
     };
-  }, [entries, trackedJobs]);
+  }, [entries]);
 
   const onFile = async (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
