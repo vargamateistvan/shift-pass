@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { config } from "../config.js";
 import { log } from "../lib/logger.js";
-import type { SseStream } from "../lib/sse.js";
+import type { ProgressStream } from "../lib/sse.js";
 import { assertDomainAllowed, isValidEmail, parseUrl } from "../lib/guard.js";
 import type { RotateRequest } from "../types.js";
 import { BrowserSession } from "./browser.js";
@@ -17,7 +17,7 @@ import { saveEntry } from "../vault/vault.js";
  */
 export async function runRotation(
   req: RotateRequest,
-  stream: SseStream,
+  stream: ProgressStream,
 ): Promise<void> {
   let browser: BrowserSession | undefined;
   try {
@@ -140,7 +140,7 @@ export async function runRotation(
   }
 }
 
-function human(stream: SseStream, reason: string): void {
+function human(stream: ProgressStream, reason: string): void {
   stream.send({
     type: "needs_human",
     reason,

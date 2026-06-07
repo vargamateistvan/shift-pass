@@ -1,8 +1,14 @@
 import type { Response } from "express";
 import type { ProgressEvent } from "../types.js";
 
+export interface ProgressStream {
+  readonly isClosed: boolean;
+  send(event: ProgressEvent): void;
+  close(): void;
+}
+
 /** Minimal Server-Sent-Events writer for streaming agent progress. */
-export class SseStream {
+export class SseStream implements ProgressStream {
   private closed = false;
 
   constructor(private readonly res: Response) {

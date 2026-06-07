@@ -12,6 +12,37 @@ export interface RotateParams {
   googleAccessToken: string;
 }
 
+export interface BackgroundRotationJob {
+  id: string;
+  url: string;
+  email: string;
+  status: "queued" | "running" | "needs_human" | "done" | "error";
+  message: string;
+  createdAt: string;
+  updatedAt: string;
+  result: { site: string; email: string; password: string } | null;
+  error: string | null;
+  recentEvents: Array<{ type: string; text: string }>;
+}
+
+function serverError(status: number, detail: string): Error {
+  return new Error("Server error " + status + (detail ? ": " + detail : ""));
+}
+
+function parseFrame(frame: string): RotateProgress | null {
+  const line = frame.split("\n").find((entry) => entry.startsWith("data:"));
+  if (!line) return null;
+
+  const json = line.slice(5).trim();
+  if (!json) return null;
+
+  try {
+    return JSON.parse(json) as RotateProgress;
+  } catch {
+    return null;
+  }
+}
+
 /**
  * Calls the backend rotate endpoint and yields progress events parsed from the
  * Server-Sent-Events stream. SSE-over-POST, so we read the fetch body directly.
@@ -29,7 +60,7 @@ export async function* streamRotation(
 
   if (!res.ok || !res.body) {
     const detail = await res.text().catch(() => "");
-    throw new Error(`Server error ${res.status}${detail ? `: ${detail}` : ""}`);
+    throw serverError(res.status, detail);
   }
 
   const reader = res.body.getReader();
@@ -44,15 +75,52 @@ export async function* streamRotation(
     const frames = buffer.split("\n\n");
     buffer = frames.pop() ?? "";
     for (const frame of frames) {
-      const line = frame.split("\n").find((l) => l.startsWith("data:"));
-      if (!line) continue;
-      const json = line.slice(5).trim();
-      if (!json) continue;
-      try {
-        yield JSON.parse(json) as RotateProgress;
-      } catch {
-        /* ignore malformed frame */
-      }
+      const event = parseFrame(frame);
+      if (event) yield event;
     }
   }
+}
+
+async function jsonFetch<T>(
+  path: string,
+  init: RequestInit,
+  signal?: AbortSignal,
+): Promise<T> {
+  const res = await fetch(path, { ...init, signal });
+  if (!res.ok) {
+    const detail = await res.text().catch(() => "");
+    throw serverError(res.status, detail);
+  }
+
+  return (await res.json()) as T;
+}
+
+export async function startBackgroundRotation(
+  params: RotateParams,
+  signal?: AbortSignal,
+): Promise<BackgroundRotationJob> {
+  const data = await jsonFetch<{ job: BackgroundRotationJob }>(
+    "/api/rotate/background",
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(params),
+    },
+    signal,
+  );
+
+  return data.job;
+}
+
+export async function getBackgroundRotationJob(
+  jobId: string,
+  signal?: AbortSignal,
+): Promise<BackgroundRotationJob> {
+  const data = await jsonFetch<{ job: BackgroundRotationJob }>(
+    `/api/rotate/background/${jobId}`,
+    { method: "GET" },
+    signal,
+  );
+
+  return data.job;
 }

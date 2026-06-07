@@ -1,5 +1,7 @@
 import { useMemo, useState, type ChangeEvent } from "react";
 import { Link } from "react-router-dom";
+import { useAuth } from "../auth/useAuth";
+import { startBackgroundRotation } from "../api/rotate";
 import { type GooglePasswordEntry } from "../passwords/context";
 import { useLoadedCsv } from "../passwords/useLoadedCsv";
 
@@ -84,8 +86,12 @@ function buildRotatePath(entry: GooglePasswordEntry): string {
 }
 
 export function Passwords() {
+  const { getToken } = useAuth();
   const { entries, fileName, setLoadedCsv } = useLoadedCsv();
   const [error, setError] = useState<string | null>(null);
+  const [backgroundJobId, setBackgroundJobId] = useState<string | null>(null);
+  const [backgroundNotice, setBackgroundNotice] = useState<string | null>(null);
+  const [startingKey, setStartingKey] = useState<string | null>(null);
   const [visiblePasswords, setVisiblePasswords] = useState<
     Record<string, boolean>
   >({});
@@ -126,6 +132,32 @@ export function Passwords() {
     }
   };
 
+  const startBackgroundReset = async (entry: GooglePasswordEntry) => {
+    const entryKey = `${entry.url}-${entry.username}`;
+    setStartingKey(entryKey);
+    setBackgroundNotice(null);
+
+    try {
+      const googleAccessToken = await getToken();
+      const job = await startBackgroundRotation({
+        url: entry.url,
+        email: entry.username,
+        googleAccessToken,
+      });
+
+      setBackgroundJobId(job.id);
+      setBackgroundNotice(
+        `Background AI started for ${hostFromUrl(entry.url) || entry.url}. Job ${job.id} will keep running on the server.`,
+      );
+    } catch (err) {
+      setBackgroundNotice(
+        err instanceof Error ? err.message : "Failed to start background AI.",
+      );
+    } finally {
+      setStartingKey(null);
+    }
+  };
+
   return (
     <div className="page">
       <div className="page-head">
@@ -149,7 +181,7 @@ export function Passwords() {
             >
               Open Google Password Manager and export passwords
             </a>
-            .
+            {"."}
           </p>
         </div>
 
@@ -186,6 +218,14 @@ export function Passwords() {
           {hasEntries && <p className="success">{summary}</p>}
         </div>
       </section>
+
+      {backgroundNotice && backgroundJobId && (
+        <p className="success">
+          {backgroundNotice}{" "}
+          <Link to={`/app/rotate?job=${backgroundJobId}`}>Open job status</Link>
+          {"."}
+        </p>
+      )}
 
       {error && <p className="error">{error}</p>}
       {!error && !hasEntries && (
@@ -236,6 +276,16 @@ export function Passwords() {
                   >
                     Reset password
                   </Link>
+                  <button
+                    type="button"
+                    className="btn btn-ghost vault-action"
+                    onClick={() => void startBackgroundReset(entry)}
+                    disabled={startingKey === `${entry.url}-${entry.username}`}
+                  >
+                    {startingKey === `${entry.url}-${entry.username}`
+                      ? "Starting…"
+                      : "Run in background"}
+                  </button>
                 </div>
                 <div className="vault-password-field">
                   <code>

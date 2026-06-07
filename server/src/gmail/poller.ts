@@ -1,5 +1,5 @@
 import { log } from "../lib/logger.js";
-import type { SseStream } from "../lib/sse.js";
+import type { ProgressStream } from "../lib/sse.js";
 import { searchMessages } from "./client.js";
 import {
   extractResetCode,
@@ -22,7 +22,7 @@ export async function pollForResetEmail(
   token: string,
   host: string,
   startedAtMs: number,
-  stream: SseStream,
+  stream: ProgressStream,
   opts: { timeoutMs?: number; intervalMs?: number } = {},
 ): Promise<ResetEmail | null> {
   const domain = rootDomain(host);

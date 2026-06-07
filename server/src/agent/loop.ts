@@ -1,7 +1,7 @@
 import type Anthropic from "@anthropic-ai/sdk";
 import { config } from "../config.js";
 import { log } from "../lib/logger.js";
-import type { SseStream } from "../lib/sse.js";
+import type { ProgressStream } from "../lib/sse.js";
 import type { BrowserSession } from "./browser.js";
 import { executeAction } from "./executor.js";
 import { COMPUTER_USE_BETA, mapToolUse, tools } from "../llm/anthropic.js";
@@ -69,7 +69,7 @@ async function observation(browser: BrowserSession): Promise<{
 export async function runAgentGoal(
   client: Anthropic,
   browser: BrowserSession,
-  stream: SseStream,
+  stream: ProgressStream,
   opts: { goal: string; phase: ProgressPhase },
 ): Promise<GoalResult> {
   const obs = await observation(browser);

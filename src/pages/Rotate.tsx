@@ -1,13 +1,23 @@
-import { useRef, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState } from "react";
+import type * as React from "react";
 import { useLocation, useSearchParams } from "react-router-dom";
 import { useAuth } from "../auth/useAuth";
-import { streamRotation, type RotateProgress } from "../api/rotate";
+import {
+  getBackgroundRotationJob,
+  streamRotation,
+  type BackgroundRotationJob,
+  type RotateProgress,
+} from "../api/rotate";
 
 type Status = "idle" | "running" | "needs_human" | "done" | "error";
 
 interface LogLine {
   text: string;
   tone: "info" | "step" | "warn" | "error";
+}
+
+function formatStep(action: string, detail?: string): string {
+  return detail ? action + ": " + detail : action;
 }
 
 export function Rotate() {
@@ -19,6 +29,7 @@ export function Rotate() {
 function RotateForm() {
   const { getToken } = useAuth();
   const [searchParams] = useSearchParams();
+  const backgroundJobId = searchParams.get("job");
   const [url, setUrl] = useState(searchParams.get("url") ?? "");
   const [email, setEmail] = useState(searchParams.get("email") ?? "");
   const [status, setStatus] = useState<Status>("idle");
@@ -28,10 +39,66 @@ function RotateForm() {
     site: string;
     password: string;
   } | null>(null);
+  const [backgroundJob, setBackgroundJob] =
+    useState<BackgroundRotationJob | null>(null);
+  const [backgroundError, setBackgroundError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [backgroundCopied, setBackgroundCopied] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
 
   const append = (line: LogLine) => setLog((prev) => [...prev, line]);
+
+  useEffect(() => {
+    if (!backgroundJobId) {
+      return;
+    }
+
+    let cancelled = false;
+    let timer: number | null = null;
+    const controller = new AbortController();
+
+    const poll = async () => {
+      try {
+        const job = await getBackgroundRotationJob(
+          backgroundJobId,
+          controller.signal,
+        );
+        if (cancelled) return;
+
+        setBackgroundJob(job);
+        setBackgroundError(null);
+
+        if (job.status === "done") {
+          setBackgroundCopied(false);
+        }
+
+        if (
+          job.status === "done" ||
+          job.status === "needs_human" ||
+          job.status === "error"
+        ) {
+          return;
+        }
+
+        timer = globalThis.setTimeout(poll, 3000);
+      } catch (err) {
+        if (cancelled) return;
+        setBackgroundError(
+          err instanceof Error ? err.message : "Failed to load background job.",
+        );
+      }
+    };
+
+    void poll();
+
+    return () => {
+      cancelled = true;
+      controller.abort();
+      if (timer !== null) {
+        globalThis.clearTimeout(timer);
+      }
+    };
+  }, [backgroundJobId]);
 
   const handle = (ev: RotateProgress) => {
     switch (ev.type) {
@@ -40,7 +107,7 @@ function RotateForm() {
         break;
       case "step":
         append({
-          text: `→ ${ev.action}${ev.detail ? `: ${ev.detail}` : ""}`,
+          text: "→ " + formatStep(ev.action, ev.detail),
           tone: "step",
         });
         break;
@@ -62,7 +129,7 @@ function RotateForm() {
     }
   };
 
-  const start = async (e: FormEvent) => {
+  const start = async (e: React.SyntheticEvent<HTMLFormElement>) => {
     e.preventDefault();
     setStatus("running");
     setLog([]);
@@ -103,7 +170,15 @@ function RotateForm() {
     setCopied(true);
   };
 
+  const copyBackgroundPassword = async () => {
+    if (!backgroundJob?.result) return;
+    await navigator.clipboard.writeText(backgroundJob.result.password);
+    setBackgroundCopied(true);
+  };
+
   const running = status === "running";
+  const backgroundDone = backgroundJob?.status === "done";
+  const backgroundStatus = backgroundJob?.status ?? "queued";
 
   return (
     <div className="page">
@@ -115,9 +190,55 @@ function RotateForm() {
         inbox, and sets a new strong password — you just click the button.
       </p>
 
+      {backgroundJobId && (
+        <section className="rotate-background">
+          <div className="rotate-background-head">
+            <h3>Background job</h3>
+            <span className={`vault-status vault-${backgroundStatus}`}>
+              {backgroundStatus}
+            </span>
+          </div>
+          {backgroundError && <p className="error">{backgroundError}</p>}
+          {backgroundJob && (
+            <>
+              <p className="muted">{backgroundJob.message}</p>
+              <ul className="rotate-log rotate-background-log">
+                {backgroundJob.recentEvents.map((event) => (
+                  <li
+                    key={`${event.type}-${event.text}`}
+                    className={`log-${event.type}`}
+                  >
+                    {event.text}
+                  </li>
+                ))}
+              </ul>
+              {backgroundDone && backgroundJob.result && (
+                <div className="rotate-result">
+                  <p className="success">
+                    ✓ Background rotation completed for{" "}
+                    {backgroundJob.result.site}
+                  </p>
+                  <div className="password-reveal">
+                    <code>{backgroundJob.result.password}</code>
+                    <button
+                      type="button"
+                      className="btn btn-ghost"
+                      onClick={copyBackgroundPassword}
+                    >
+                      {backgroundCopied ? "Copied ✓" : "Copy"}
+                    </button>
+                  </div>
+                  <p className="muted">Saved to your encrypted vault.</p>
+                </div>
+              )}
+            </>
+          )}
+        </section>
+      )}
+
       <form className="compose-form" onSubmit={start}>
         <label>
-          Website URL
+          Website URL{" "}
           <input
             type="text"
             required
@@ -128,7 +249,7 @@ function RotateForm() {
           />
         </label>
         <label>
-          Account email
+          Account email{" "}
           <input
             type="email"
             required
@@ -155,7 +276,7 @@ function RotateForm() {
           <p className="success">✓ New password set for {result.site}</p>
           <div className="password-reveal">
             <code>{result.password}</code>
-            <button className="btn btn-ghost" onClick={copy}>
+            <button type="button" className="btn btn-ghost" onClick={copy}>
               {copied ? "Copied ✓" : "Copy"}
             </button>
           </div>
@@ -178,8 +299,11 @@ function RotateForm() {
             </div>
           )}
           <ul className="rotate-log">
-            {log.map((line, i) => (
-              <li key={i} className={`log-${line.tone}`}>
+            {log.map((line) => (
+              <li
+                key={`${line.tone}-${line.text}`}
+                className={`log-${line.tone}`}
+              >
                 {line.text}
               </li>
             ))}
