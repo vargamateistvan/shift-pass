@@ -314,7 +314,7 @@ export async function runAgentGoal(
       repeatedActionCount = 1;
     }
 
-    if (repeatedActionCount >= 8) {
+    if (repeatedActionCount >= 4) {
       const reason =
         "Agent appears stuck repeating the same action. Manual intervention recommended.";
       log.warn("agent repeated-action guard triggered", {
@@ -335,7 +335,7 @@ export async function runAgentGoal(
       const hotspotCount = recentClickCoords.filter(
         (c) => c === coordKey,
       ).length;
-      if (hotspotCount >= 7) {
+      if (hotspotCount >= 4) {
         const reason = `Agent appears stuck repeatedly clicking (${coordKey}). Manual intervention recommended.`;
         log.warn("agent click-hotspot guard triggered", {
           phase: opts.phase,
