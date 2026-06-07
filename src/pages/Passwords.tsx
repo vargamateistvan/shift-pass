@@ -34,6 +34,8 @@ interface ResolvedTrackedJobs {
   nextFailureCounts: Record<string, number>;
 }
 
+type RowJobSource = "tracked" | "fallback";
+
 function parseCsvRow(line: string): string[] {
   const out: string[] = [];
   let cell = "";
@@ -235,6 +237,10 @@ function assignFallbackJobs(
   return assignments;
 }
 
+function rowJobSourceText(source: RowJobSource): string {
+  return source === "tracked" ? "Linked via saved job" : "Matched via fallback";
+}
+
 function collectTrackedEntries(
   entries: GooglePasswordEntry[],
   trackedJobs: Record<string, string>,
@@ -371,6 +377,10 @@ export function Passwords() {
     {},
   );
   const rowJobsRef = useRef(rowJobs);
+  const [rowJobSources, setRowJobSources] = useState<
+    Record<string, RowJobSource>
+  >({});
+  const rowJobSourcesRef = useRef(rowJobSources);
   const trackedJobFailureCountsRef = useRef<Record<string, number>>({});
   const [fallbackDiscoveryWarning, setFallbackDiscoveryWarning] = useState<
     string | null
@@ -396,6 +406,10 @@ export function Passwords() {
   }, [rowJobs]);
 
   useEffect(() => {
+    rowJobSourcesRef.current = rowJobSources;
+  }, [rowJobSources]);
+
+  useEffect(() => {
     trackedJobsRef.current = trackedJobs;
 
     if (typeof localStorage === "undefined") {
@@ -417,6 +431,7 @@ export function Passwords() {
       if (entries.length === 0) {
         if (!cancelled) {
           setRowJobs({});
+          setRowJobSources({});
           setTrackedJobs({});
           setFallbackDiscoveryWarning(null);
         }
@@ -484,6 +499,14 @@ export function Passwords() {
         unresolvedEntries,
         fallbackResult.jobs,
       );
+      const nextJobSources: Record<string, RowJobSource> = {
+        ...Object.fromEntries(
+          Object.keys(fallbackJobs).map((key) => [key, "fallback"] as const),
+        ),
+        ...Object.fromEntries(
+          Object.keys(trackedJobsByKey).map((key) => [key, "tracked"] as const),
+        ),
+      };
       const nextJobs = {
         ...fallbackJobs,
         ...trackedJobsByKey,
@@ -493,11 +516,13 @@ export function Passwords() {
         const preservedJob = rowJobsRef.current[key];
         if (preservedJob && !nextJobs[key]) {
           nextJobs[key] = preservedJob;
+          nextJobSources[key] = rowJobSourcesRef.current[key] ?? "tracked";
         }
       }
 
       trackedJobFailureCountsRef.current = nextFailureCounts;
       setRowJobs(nextJobs);
+      setRowJobSources(nextJobSources);
 
       const nextTrackedJobs = trackActiveJobs(nextJobs);
       for (const key of graceTrackedKeys) {
@@ -581,6 +606,10 @@ export function Passwords() {
       setRowJobs((prev) => ({
         ...prev,
         [key]: job,
+      }));
+      setRowJobSources((prev) => ({
+        ...prev,
+        [key]: "tracked",
       }));
 
       setBackgroundNoticeTone("success");
@@ -684,6 +713,7 @@ export function Passwords() {
                 const key = entryKey(entry);
                 const rowJob = rowJobs[key];
                 const rowJobId = trackedJobs[key];
+                const rowJobSource = rowJobSources[key];
                 const rowJobActive = rowJob
                   ? !isTerminalJob(rowJob.status)
                   : false;
@@ -747,6 +777,11 @@ export function Passwords() {
                           >
                             {formatRowStatus(rowJob.status)}
                           </span>
+                          {rowJobSource && (
+                            <span className="vault-job-source">
+                              {rowJobSourceText(rowJobSource)}
+                            </span>
+                          )}
                           <Link
                             to={`/app/rotate?job=${rowJobId}`}
                             className="vault-job-link"

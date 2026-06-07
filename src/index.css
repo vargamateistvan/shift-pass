@@ -897,6 +897,11 @@ h2 {
   flex-wrap: wrap;
 }
 
+.vault-job-source {
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
 .vault-job-link {
   color: var(--primary);
   font-size: 0.82rem;
