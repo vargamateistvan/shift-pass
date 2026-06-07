@@ -902,6 +902,12 @@ h2 {
   font-size: 0.78rem;
 }
 
+.rotate-context-note {
+  margin: 0.4rem 0 0;
+  color: var(--muted);
+  font-size: 0.84rem;
+}
+
 .vault-job-link {
   color: var(--primary);
   font-size: 0.82rem;

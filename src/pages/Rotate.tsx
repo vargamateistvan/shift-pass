@@ -9,6 +9,8 @@ import {
   type RotateProgress,
 } from "../api/rotate";
 
+type BackgroundJobSource = "tracked" | "fallback";
+
 type Status = "idle" | "running" | "needs_human" | "done" | "error";
 
 interface LogLine {
@@ -49,6 +51,10 @@ function formatStep(action: string, detail?: string): string {
   return detail ? action + ": " + detail : action;
 }
 
+function formatBackgroundSource(source: BackgroundJobSource): string {
+  return source === "tracked" ? "Linked via saved job" : "Matched via fallback";
+}
+
 export function Rotate() {
   const location = useLocation();
 
@@ -59,6 +65,7 @@ function RotateForm() {
   const { getToken } = useAuth();
   const [searchParams] = useSearchParams();
   const backgroundJobId = searchParams.get("job");
+  const backgroundSource = searchParams.get("source");
   const [url, setUrl] = useState(searchParams.get("url") ?? "");
   const [email, setEmail] = useState(searchParams.get("email") ?? "");
   const [status, setStatus] = useState<Status>("idle");
@@ -211,6 +218,10 @@ function RotateForm() {
   const backgroundFailed = backgroundJob?.status === "error";
   const backgroundStatus = backgroundJob?.status ?? "queued";
   const isBackgroundMode = Boolean(backgroundJobId);
+  const backgroundSourceLabel =
+    backgroundSource === "tracked" || backgroundSource === "fallback"
+      ? formatBackgroundSource(backgroundSource)
+      : null;
 
   return (
     <div className="page">
@@ -231,6 +242,9 @@ function RotateForm() {
               {formatBackgroundStatus(backgroundStatus)}
             </span>
           </div>
+          {backgroundSourceLabel && (
+            <p className="rotate-context-note">{backgroundSourceLabel}</p>
+          )}
           {backgroundError && <p className="error">{backgroundError}</p>}
           {backgroundJob && (
             <>

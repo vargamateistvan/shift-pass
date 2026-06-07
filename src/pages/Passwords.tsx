@@ -241,6 +241,15 @@ function rowJobSourceText(source: RowJobSource): string {
   return source === "tracked" ? "Linked via saved job" : "Matched via fallback";
 }
 
+function buildBackgroundJobPath(jobId: string, source?: RowJobSource): string {
+  const params = new URLSearchParams({ job: jobId });
+  if (source) {
+    params.set("source", source);
+  }
+
+  return `/app/rotate?${params.toString()}`;
+}
+
 function collectTrackedEntries(
   entries: GooglePasswordEntry[],
   trackedJobs: Record<string, string>,
@@ -616,7 +625,7 @@ export function Passwords() {
       setBackgroundNotice(
         `Background AI started for ${hostFromUrl(entry.url) || entry.url}. Opening the live job monitor…`,
       );
-      navigate(`/app/rotate?job=${job.id}`);
+      navigate(buildBackgroundJobPath(job.id, "tracked"));
     } catch (err) {
       setFailedKey(key);
       setBackgroundNoticeTone("error");
@@ -783,7 +792,7 @@ export function Passwords() {
                             </span>
                           )}
                           <Link
-                            to={`/app/rotate?job=${rowJobId}`}
+                            to={buildBackgroundJobPath(rowJobId, rowJobSource)}
                             className="vault-job-link"
                           >
                             View job
