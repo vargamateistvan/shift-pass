@@ -104,6 +104,9 @@ function RotateForm() {
         if (cancelled) return;
 
         setBackgroundJob(job);
+        setBackgroundShotIndex(
+          job.screenshots.length > 0 ? job.screenshots.length - 1 : 0,
+        );
         setBackgroundError(null);
 
         if (job.status === "done") {

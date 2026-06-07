@@ -143,7 +143,12 @@ export class BrowserSession {
         const nodes = document.querySelectorAll(
           'a, button, input, [role="button"], [role="link"]',
         );
-        const out: Array<{ x: number; y: number; score: number; text: string }> = [];
+        const out: Array<{
+          x: number;
+          y: number;
+          score: number;
+          text: string;
+        }> = [];
 
         nodes.forEach((node) => {
           const el = node as HTMLElement;
@@ -251,7 +256,10 @@ export class BrowserSession {
             resetByAria,
             "reset trigger (aria) after sign-in",
           )) ||
-          (await tryClickScored("reset", "reset trigger (scored) after sign-in"));
+          (await tryClickScored(
+            "reset",
+            "reset trigger (scored) after sign-in",
+          ));
       }
     }
 
