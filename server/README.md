@@ -102,3 +102,15 @@ recover row-level progress after refreshes or server restarts.
    briefly before dropping the stale mapping.
 5. Seed enough active jobs to hit the list cap and confirm the list response is
    marked truncated and the SPA shows the warning banner.
+
+## Troubleshooting Password page reconnects
+
+- `Linked via saved job` means the SPA recovered the row from a persisted job
+  id returned by the background job endpoints.
+- `Matched via fallback` means the SPA could not reuse a saved id and instead
+  matched an active job by normalized host plus username/email.
+- If a row does not reconnect immediately, check whether the referenced job id
+  still exists; the frontend intentionally retries a stale id briefly before
+  abandoning it.
+- If the SPA shows a truncated-discovery warning, the list endpoint hit its
+  applied limit and older active jobs may be omitted from that refresh cycle.

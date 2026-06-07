@@ -65,6 +65,19 @@ Google Password Manager CSV rows.
 6. Leave the page open during truncated discovery and confirm refreshes slow
    down compared with the normal active-job polling cadence.
 
+### Troubleshooting
+
+- `Linked via saved job`: the row reconnected through a stored background job
+  id, which is the most precise recovery path.
+- `Matched via fallback`: the row was recovered by matching an active job on
+  normalized host plus username/email because no saved job id could be reused.
+- If a row does not reconnect immediately after refresh, the frontend may still
+  be inside the stale-id grace window before it drops an invalid saved mapping.
+- If you see the truncated-discovery warning, the server returned only the most
+  recent matching active jobs, so older active jobs may not appear yet.
+- Duplicate rows for the same host and username are resolved one-to-one, so a
+  single fallback-discovered job should not attach to multiple rows.
+
 See [`server/README.md`](./server/README.md) for full setup. Quick start:
 
 ```bash
