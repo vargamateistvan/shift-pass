@@ -82,7 +82,9 @@ rotateRouter.get("/rotate/background", (req, res) => {
 
 rotateRouter.get("/rotate/background/batch", (req, res) => {
   const ids = Array.isArray(req.query.jobId)
-    ? req.query.jobId.filter((value): value is string => typeof value === "string")
+    ? req.query.jobId.filter(
+        (value): value is string => typeof value === "string",
+      )
     : typeof req.query.jobId === "string"
       ? [req.query.jobId]
       : [];

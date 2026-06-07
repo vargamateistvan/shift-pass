@@ -297,7 +297,11 @@ export function Passwords() {
         );
 
       let trackedPairs: Array<
-        | { key: string; entry: GooglePasswordEntry; job: BackgroundRotationJob }
+        | {
+            key: string;
+            entry: GooglePasswordEntry;
+            job: BackgroundRotationJob;
+          }
         | { key: string; entry: GooglePasswordEntry; retryable: boolean }
       >;
 
