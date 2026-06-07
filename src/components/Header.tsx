@@ -1,5 +1,6 @@
 import { Link, NavLink } from 'react-router-dom';
 import { useAuth } from '../auth/useAuth';
+import { Logo } from './Logo';
 
 export function Header() {
   const { isAuthenticated, user, signOut } = useAuth();
@@ -7,7 +8,8 @@ export function Header() {
   return (
     <header className="header">
       <Link to="/" className="brand">
-        📬 Gmail Manager
+        <Logo size={26} />
+        <span className="brand-name">ShiftPass</span>
       </Link>
 
       {isAuthenticated && (
@@ -16,6 +18,7 @@ export function Header() {
             Inbox
           </NavLink>
           <NavLink to="/app/compose">Compose</NavLink>
+          <NavLink to="/app/rotate">Rotate</NavLink>
         </nav>
       )}
 

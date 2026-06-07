@@ -1,16 +1,43 @@
-# Gmail Manager
+# ShiftPass
 
-A frontend-only React SPA that lets you **sign in with Google** and read/send
-Gmail on your behalf. Authentication and authorization are delegated entirely to
-Google via OAuth 2.0 (Google Identity Services) — **this app never handles your
-password**.
+A React SPA that lets you **sign in with Google**, manage Gmail, and **rotate
+passwords on other sites with one click** using a server-side AI agent.
+Authentication is delegated entirely to Google via OAuth 2.0 — **this app never
+handles your Google password**.
 
 ## Features
 
 - 🔐 Sign in with Google (OAuth 2.0 token model — no password handling)
-- �� Read your latest inbox messages and view full message detail
+- 📥 Read your latest inbox messages and view full message detail
 - ✉️ Compose and send email
+- ⚡ **Auto-rotate passwords** — one click runs a site's forgot-password flow,
+  reads the reset email from your inbox, and sets a new strong password
 - 🧹 Access tokens kept in memory only and revoked on sign-out
+
+## Auto-rotate passwords (AI agent)
+
+The **Rotate** page lets you point ShiftPass at any website and account email.
+A backend service (in [`server/`](./server)) runs an **Anthropic Claude
+computer-use** agent that drives a real headless browser to:
+
+1. find and submit the site's "forgot password" form,
+2. read the reset email via the Gmail API (reusing your token),
+3. open the reset link and set a freshly generated strong password,
+4. store it in an AES-256-GCM **encrypted vault**.
+
+Progress (phases, steps, live screenshots) streams to the UI over SSE.
+
+> **Defaults to a safe dry run** (`DRY_RUN=true`): the agent fills the new
+> password but does not submit it until you opt in. CAPTCHAs, 2FA/OTP, and login
+> walls are **not** bypassed — the agent pauses and asks you to finish manually.
+
+See [`server/README.md`](./server/README.md) for full setup. Quick start:
+
+```bash
+npm run server:install   # installs backend deps + Chromium
+cp server/.env.example server/.env   # set ANTHROPIC_API_KEY and VAULT_KEY
+npm run server           # backend on :8787 (the SPA proxies /api to it)
+```
 
 ## Security model
 
@@ -63,6 +90,7 @@ Open http://localhost:5173 and click **Sign in with Google**.
 - `yarn build` — type-check, build for production, and emit a `404.html` SPA fallback
 - `yarn preview` — preview the production build
 - `yarn lint` — run ESLint
+- `npm run server` — start the auto-rotate backend (see `server/README.md`)
 
 ## Deployment (GitHub Pages)
 
@@ -89,14 +117,20 @@ client-side routes resolve on refresh/deep links.
 src/
   auth/AuthContext.tsx     # OAuth token state, sign in/out, silent refresh
   api/gmail.ts             # Gmail REST helpers (list, read, send)
-  components/              # Header, SignInButton, ProtectedRoute
-  pages/                   # Landing, Inbox, Message, Compose
+  api/rotate.ts            # SSE client for the auto-rotate backend
+  components/              # Header, Logo, SignInButton, ProtectedRoute
+  pages/                   # Landing, Inbox, Message, Compose, Rotate
   App.tsx                  # Routes
   main.tsx                 # Providers (GoogleOAuth, Auth, Router)
+
+server/                    # Auto-rotate agent backend (Express + Playwright + Claude)
+  src/agent/               # Browser session, action executor, agent loop, orchestrator
+  src/gmail/               # Reset-email poller + link/code extractor
+  src/vault/               # AES-256-GCM encrypted password vault
 ```
 
 ## Not included (by design)
 
-- No password storage, rotation, or "forgot password" automation. Google does
-  not provide an API for that and actively blocks automating the reset flow.
-- No backend, database, or server-side sessions.
+- The auto-rotate agent does **not** bypass CAPTCHAs, 2FA/OTP, or anti-bot
+  walls — it pauses for manual action instead.
+- No long-lived Google refresh tokens in the browser (pure SPA token model).

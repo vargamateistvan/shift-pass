@@ -33,6 +33,7 @@ Defined in `:root` in `src/index.css`. Always reference these instead of raw val
 | `--text` | Primary text |
 | `--muted` | Secondary text, labels, placeholders |
 | `--primary` / `--primary-hover` | Primary action, focus border |
+| `--accent` / `--gradient` | Brand accent + blue→purple gradient (logo, primary buttons, headings) |
 | `--error` / `--success` | Status messaging |
 
 If a genuinely new semantic color is needed, add a token to `:root` first, then use it.
@@ -52,6 +53,8 @@ If a genuinely new semantic color is needed, add a token to `:root` first, then 
 - Always handle `disabled` states (`.btn:disabled` is pre-styled); reflect async state in the label
   (e.g. `Sending…` while pending).
 - Status text uses `.success` / `.error` / `.muted`.
+- Brand: use the `Logo` component (`src/components/Logo.tsx`) for the mark; the
+  wordmark uses `--gradient` clipped to text.
 - Forms use `.compose-form` with `<label>` wrapping its input; inputs get a `placeholder`.
 
 See [patterns.md](./references/patterns.md) for copy-paste snippets (button, form field, card row, status).

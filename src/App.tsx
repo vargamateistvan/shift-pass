@@ -5,6 +5,7 @@ import { Landing } from './pages/Landing';
 import { Inbox } from './pages/Inbox';
 import { Message } from './pages/Message';
 import { Compose } from './pages/Compose';
+import { Rotate } from './pages/Rotate';
 
 export default function App() {
   return (
@@ -34,6 +35,14 @@ export default function App() {
             element={
               <ProtectedRoute>
                 <Compose />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/app/rotate"
+            element={
+              <ProtectedRoute>
+                <Rotate />
               </ProtectedRoute>
             }
           />
