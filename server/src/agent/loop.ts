@@ -214,8 +214,24 @@ export async function runAgentGoal(
   client: GoogleGenAI,
   browser: BrowserSession,
   stream: ProgressStream,
-  opts: { goal: string; phase: ProgressPhase },
+  opts: { goal: string; phase: ProgressPhase; accountEmail?: string },
 ): Promise<GoalResult> {
+  if (opts.phase === "requesting_reset" && opts.accountEmail) {
+    const kickoffNotes = await browser.kickoffResetFlow(opts.accountEmail);
+    if (kickoffNotes.length > 0) {
+      stream.send({
+        type: "step",
+        index: 0,
+        action: "heuristic_reset_kickoff",
+        detail: kickoffNotes.join("; "),
+      });
+      log.info("heuristic reset kickoff", {
+        phase: opts.phase,
+        notes: kickoffNotes,
+      });
+    }
+  }
+
   let obs = await observation(browser);
   const recentActions: string[] = [];
   let lastActionSig = "";

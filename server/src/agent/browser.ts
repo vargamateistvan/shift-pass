@@ -101,6 +101,63 @@ export class BrowserSession {
     await this.page.waitForTimeout(Math.min(ms, 10000));
   }
 
+  /**
+   * Best-effort deterministic kickoff for forgot-password flows.
+   * This reduces random click loops before the model takes over.
+   */
+  async kickoffResetFlow(email: string): Promise<string[]> {
+    const notes: string[] = [];
+
+    const resetTrigger = this.page
+      .locator('a, button, [role="button"], [role="link"]')
+      .filter({ hasText: /forgot|reset|trouble|can't sign in/i })
+      .first();
+
+    if ((await resetTrigger.count()) > 0) {
+      try {
+        await resetTrigger.click({ timeout: 2000 });
+        notes.push("clicked reset trigger");
+        await this.settle();
+      } catch {
+        /* continue with next heuristics */
+      }
+    }
+
+    const emailInput = this.page
+      .locator(
+        'input[type="email"], input[name*="email" i], input[id*="email" i], input[autocomplete="email"]',
+      )
+      .first();
+
+    if ((await emailInput.count()) > 0) {
+      try {
+        await emailInput.fill(email, { timeout: 2000 });
+        notes.push("filled email input");
+      } catch {
+        /* continue with next heuristics */
+      }
+    }
+
+    const submit = this.page
+      .locator(
+        'button, input[type="submit"], input[type="button"], [role="button"]',
+      )
+      .filter({ hasText: /send|submit|continue|next|reset|email/i })
+      .first();
+
+    if ((await submit.count()) > 0) {
+      try {
+        await submit.click({ timeout: 2000 });
+        notes.push("clicked submit button");
+        await this.settle();
+      } catch {
+        /* continue with model loop */
+      }
+    }
+
+    return notes;
+  }
+
   url(): string {
     return this.page.url();
   }
@@ -113,7 +170,13 @@ export class BrowserSession {
   /** Compact list of interactive elements to give the model textual grounding. */
   async interactiveElements(): Promise<InteractiveEl[]> {
     return this.page.evaluate(() => {
-      const out: { tag: string; type?: string; text: string; x: number; y: number }[] = [];
+      const out: {
+        tag: string;
+        type?: string;
+        text: string;
+        x: number;
+        y: number;
+      }[] = [];
       const nodes = document.querySelectorAll(
         'a, button, input, textarea, [role="button"], [role="link"]',
       );
@@ -141,22 +204,12 @@ export class BrowserSession {
   /** Targeted candidates for password-reset flows with direct click coordinates. */
   async resetHints(): Promise<ResetHint[]> {
     return this.page.evaluate(() => {
-      const out: ResetHint[] = [];
-
-      const add = (
-        kind: ResetHint["kind"],
-        el: Element,
-        text: string,
-      ): void => {
-        const rect = (el as HTMLElement).getBoundingClientRect();
-        if (rect.width === 0 || rect.height === 0) return;
-        out.push({
-          kind,
-          text: text.slice(0, 80),
-          x: Math.round(rect.left + rect.width / 2),
-          y: Math.round(rect.top + rect.height / 2),
-        });
-      };
+      const out: {
+        kind: "email_input" | "reset_link" | "submit_button";
+        text: string;
+        x: number;
+        y: number;
+      }[] = [];
 
       const emailNodes = document.querySelectorAll(
         'input[type="email"], input[name*="email" i], input[id*="email" i], input[autocomplete="email"]',
@@ -168,7 +221,14 @@ export class BrowserSession {
           he.getAttribute("placeholder") ||
           he.getAttribute("name") ||
           "email";
-        add("email_input", el, label);
+        const rect = (el as HTMLElement).getBoundingClientRect();
+        if (rect.width === 0 || rect.height === 0) return;
+        out.push({
+          kind: "email_input",
+          text: label.slice(0, 80),
+          x: Math.round(rect.left + rect.width / 2),
+          y: Math.round(rect.top + rect.height / 2),
+        });
       });
 
       const resetNodes = document.querySelectorAll(
@@ -190,7 +250,15 @@ export class BrowserSession {
           lower.includes("trouble") ||
           lower.includes("can't sign in")
         ) {
-          add("reset_link", el, label);
+          const rect = (el as HTMLElement).getBoundingClientRect();
+          if (rect.width > 0 && rect.height > 0) {
+            out.push({
+              kind: "reset_link",
+              text: label.slice(0, 80),
+              x: Math.round(rect.left + rect.width / 2),
+              y: Math.round(rect.top + rect.height / 2),
+            });
+          }
         }
 
         if (
@@ -199,7 +267,15 @@ export class BrowserSession {
           lower.includes("continue") ||
           lower.includes("next")
         ) {
-          add("submit_button", el, label);
+          const rect = (el as HTMLElement).getBoundingClientRect();
+          if (rect.width > 0 && rect.height > 0) {
+            out.push({
+              kind: "submit_button",
+              text: label.slice(0, 80),
+              x: Math.round(rect.left + rect.width / 2),
+              y: Math.round(rect.top + rect.height / 2),
+            });
+          }
         }
       });
 

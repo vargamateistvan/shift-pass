@@ -55,6 +55,7 @@ export async function runRotation(
     });
     const goalA = await runAgentGoal(client, browser, stream, {
       phase: "requesting_reset",
+      accountEmail: req.email,
       goal:
         `Trigger a password reset for the account "${req.email}". ` +
         `Prioritize elements listed under Reset candidates and use precise clicks on their coordinates. ` +
