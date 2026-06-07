@@ -623,6 +623,10 @@ h2 {
   margin-top: 0.1rem;
 }
 
+.rotate-background-alert {
+  margin-top: 0;
+}
+
 .rotate-result {
   margin-top: 1.25rem;
   padding: 1.25rem;
@@ -658,6 +662,22 @@ h2 {
   border-radius: var(--radius);
   color: var(--text);
   line-height: 1.5;
+}
+
+.rotate-error {
+  display: grid;
+  gap: 0.35rem;
+  margin-top: 1.25rem;
+  padding: 1rem 1.1rem;
+  background: rgba(255, 107, 107, 0.08);
+  border: 1px solid var(--error);
+  border-radius: var(--radius);
+  color: var(--text);
+  line-height: 1.5;
+}
+
+.rotate-error strong {
+  font-size: 0.92rem;
 }
 
 .rotate-monitor {

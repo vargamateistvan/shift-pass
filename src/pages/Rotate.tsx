@@ -207,6 +207,8 @@ function RotateForm() {
 
   const running = status === "running";
   const backgroundDone = backgroundJob?.status === "done";
+  const backgroundNeedsHuman = backgroundJob?.status === "needs_human";
+  const backgroundFailed = backgroundJob?.status === "error";
   const backgroundStatus = backgroundJob?.status ?? "queued";
   const isBackgroundMode = Boolean(backgroundJobId);
 
@@ -233,6 +235,19 @@ function RotateForm() {
           {backgroundJob && (
             <>
               <p className="muted">{backgroundJob.message}</p>
+              {backgroundNeedsHuman && (
+                <div className="rotate-human rotate-background-alert">
+                  ⚠ This run paused because the site required a step the agent
+                  cannot safely complete, such as CAPTCHA, 2FA, OTP, or a login
+                  wall. Finish that step manually, then start a new run.
+                </div>
+              )}
+              {backgroundFailed && (
+                <div className="rotate-error rotate-background-alert">
+                  <strong>Background run failed.</strong>
+                  <span>{backgroundJob.error ?? backgroundJob.message}</span>
+                </div>
+              )}
               <ul className="rotate-log rotate-background-log">
                 {backgroundJob.recentEvents.map((event) => (
                   <li
