@@ -208,6 +208,7 @@ function RotateForm() {
   const running = status === "running";
   const backgroundDone = backgroundJob?.status === "done";
   const backgroundStatus = backgroundJob?.status ?? "queued";
+  const isBackgroundMode = Boolean(backgroundJobId);
 
   return (
     <div className="page">
@@ -215,8 +216,9 @@ function RotateForm() {
         <h2>Rotate password</h2>
       </div>
       <p className="muted rotate-intro">
-        An AI agent opens the site, requests a reset, reads the email from your
-        inbox, and sets a new strong password — you just click the button.
+        {isBackgroundMode
+          ? "This background run is being handled on the server. You can keep this page open to follow progress and copy the result when it finishes."
+          : "An AI agent opens the site, requests a reset, reads the email from your inbox, and sets a new strong password — you just click the button."}
       </p>
 
       {backgroundJobId && (
@@ -265,79 +267,91 @@ function RotateForm() {
         </section>
       )}
 
-      <form className="compose-form" onSubmit={start}>
-        <label>
-          Website URL{" "}
-          <input
-            type="text"
-            required
-            value={url}
-            onChange={(e) => setUrl(e.target.value)}
-            placeholder="example.com"
-            disabled={running}
-          />
-        </label>
-        <label>
-          Account email{" "}
-          <input
-            type="email"
-            required
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder="you@example.com"
-            disabled={running}
-          />
-        </label>
-        <div className="compose-actions">
-          <button type="submit" className="btn btn-primary" disabled={running}>
-            {running ? "Rotating…" : "Rotate password"}
-          </button>
-          {running && (
-            <button type="button" className="btn btn-ghost" onClick={cancel}>
-              Cancel
-            </button>
-          )}
-        </div>
-      </form>
+      {!isBackgroundMode && (
+        <>
+          <form className="compose-form" onSubmit={start}>
+            <label>
+              Website URL{" "}
+              <input
+                type="text"
+                required
+                value={url}
+                onChange={(e) => setUrl(e.target.value)}
+                placeholder="example.com"
+                disabled={running}
+              />
+            </label>
+            <label>
+              Account email{" "}
+              <input
+                type="email"
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="you@example.com"
+                disabled={running}
+              />
+            </label>
+            <div className="compose-actions">
+              <button
+                type="submit"
+                className="btn btn-primary"
+                disabled={running}
+              >
+                {running ? "Rotating…" : "Rotate password"}
+              </button>
+              {running && (
+                <button
+                  type="button"
+                  className="btn btn-ghost"
+                  onClick={cancel}
+                >
+                  Cancel
+                </button>
+              )}
+            </div>
+          </form>
 
-      {result && (
-        <div className="rotate-result">
-          <p className="success">✓ New password set for {result.site}</p>
-          <div className="password-reveal">
-            <code>{result.password}</code>
-            <button type="button" className="btn btn-ghost" onClick={copy}>
-              {copied ? "Copied ✓" : "Copy"}
-            </button>
-          </div>
-          <p className="muted">Saved to your encrypted vault.</p>
-        </div>
-      )}
-
-      {status === "needs_human" && (
-        <div className="rotate-human">
-          ⚠ The agent hit a step it can’t safely automate (CAPTCHA, 2FA, or a
-          login wall). Finish that step manually, then try again.
-        </div>
-      )}
-
-      {(log.length > 0 || shot) && (
-        <div className="rotate-monitor">
-          {shot && (
-            <div className="rotate-screenshot">
-              <img src={shot} alt="Agent browser view" />
+          {result && (
+            <div className="rotate-result">
+              <p className="success">✓ New password set for {result.site}</p>
+              <div className="password-reveal">
+                <code>{result.password}</code>
+                <button type="button" className="btn btn-ghost" onClick={copy}>
+                  {copied ? "Copied ✓" : "Copy"}
+                </button>
+              </div>
+              <p className="muted">Saved to your encrypted vault.</p>
             </div>
           )}
-          <ul className="rotate-log">
-            {log.map((line) => (
-              <li
-                key={`${line.tone}-${line.text}`}
-                className={`log-${line.tone}`}
-              >
-                {line.text}
-              </li>
-            ))}
-          </ul>
-        </div>
+
+          {status === "needs_human" && (
+            <div className="rotate-human">
+              ⚠ The agent hit a step it can’t safely automate (CAPTCHA, 2FA, or
+              a login wall). Finish that step manually, then try again.
+            </div>
+          )}
+
+          {(log.length > 0 || shot) && (
+            <div className="rotate-monitor">
+              {shot && (
+                <div className="rotate-screenshot">
+                  <img src={shot} alt="Agent browser view" />
+                </div>
+              )}
+              <ul className="rotate-log">
+                {log.map((line) => (
+                  <li
+                    key={`${line.tone}-${line.text}`}
+                    className={`log-${line.tone}`}
+                  >
+                    {line.text}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </>
       )}
     </div>
   );
