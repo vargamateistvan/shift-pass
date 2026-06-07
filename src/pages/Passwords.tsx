@@ -337,12 +337,10 @@ export function Passwords() {
         delete nextFailureCounts[result.key];
       }
 
-      const unresolvedEntries = entries.filter(
-        (entry) => {
-          const key = entryKey(entry);
-          return !trackedJobsByKey[key] && !graceTrackedKeys.has(key);
-        },
-      );
+      const unresolvedEntries = entries.filter((entry) => {
+        const key = entryKey(entry);
+        return !trackedJobsByKey[key] && !graceTrackedKeys.has(key);
+      });
 
       const entryGroups = new Map<string, GooglePasswordEntry[]>();
       for (const entry of unresolvedEntries) {
