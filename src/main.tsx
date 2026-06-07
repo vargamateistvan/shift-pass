@@ -2,6 +2,7 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { BrowserRouter } from "react-router-dom";
 import { GoogleOAuthProvider } from "@react-oauth/google";
+import { Analytics } from "@vercel/analytics/react";
 import "./index.css";
 import App from "./App.tsx";
 import { AuthProvider } from "./auth/AuthContext";
@@ -13,6 +14,7 @@ const tree = clientId ? (
     <AuthProvider>
       <BrowserRouter basename={import.meta.env.BASE_URL}>
         <App />
+        <Analytics />
       </BrowserRouter>
     </AuthProvider>
   </GoogleOAuthProvider>
