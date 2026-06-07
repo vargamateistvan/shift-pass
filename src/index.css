@@ -880,6 +880,24 @@ h2 {
   font-size: 0.82rem;
 }
 
+.vault-job-row {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  flex-wrap: wrap;
+}
+
+.vault-job-link {
+  color: var(--primary);
+  font-size: 0.82rem;
+  text-decoration: none;
+}
+
+.vault-job-link:hover {
+  color: var(--primary-hover);
+  text-decoration: underline;
+}
+
 .vault-password-field {
   display: inline-flex;
   align-items: center;

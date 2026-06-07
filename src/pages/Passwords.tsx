@@ -1,9 +1,15 @@
-import { useMemo, useState, type ChangeEvent } from "react";
+import { useEffect, useMemo, useState, type ChangeEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/useAuth";
-import { startBackgroundRotation } from "../api/rotate";
+import {
+  getBackgroundRotationJob,
+  startBackgroundRotation,
+  type BackgroundRotationJob,
+} from "../api/rotate";
 import { type GooglePasswordEntry } from "../passwords/context";
 import { useLoadedCsv } from "../passwords/useLoadedCsv";
+
+const BACKGROUND_JOB_STORAGE_KEY = "shiftpass.passwordRowJobs";
 
 function parseCsvRow(line: string): string[] {
   const out: string[] = [];
@@ -85,6 +91,60 @@ function buildRotatePath(entry: GooglePasswordEntry): string {
   return query ? `/app/rotate?${query}` : "/app/rotate";
 }
 
+function entryKey(entry: GooglePasswordEntry): string {
+  return `${entry.url}-${entry.username}`;
+}
+
+function loadTrackedJobs(): Record<string, string> {
+  if (typeof localStorage === "undefined") {
+    return {};
+  }
+
+  try {
+    const raw = localStorage.getItem(BACKGROUND_JOB_STORAGE_KEY);
+    if (!raw) {
+      return {};
+    }
+
+    const parsed = JSON.parse(raw) as Record<string, string>;
+    return parsed && typeof parsed === "object" ? parsed : {};
+  } catch {
+    localStorage.removeItem(BACKGROUND_JOB_STORAGE_KEY);
+    return {};
+  }
+}
+
+function isTerminalJob(status: BackgroundRotationJob["status"]): boolean {
+  return status === "done" || status === "needs_human" || status === "error";
+}
+
+function formatRowStatus(status: BackgroundRotationJob["status"]): string {
+  switch (status) {
+    case "queued":
+      return "Queued";
+    case "starting":
+      return "Starting";
+    case "navigating":
+      return "Opening site";
+    case "requesting_reset":
+      return "Requesting reset";
+    case "awaiting_email":
+      return "Waiting for email";
+    case "reading_email":
+      return "Reading email";
+    case "setting_password":
+      return "Setting password";
+    case "saving":
+      return "Saving";
+    case "done":
+      return "Done";
+    case "needs_human":
+      return "Needs human";
+    case "error":
+      return "Error";
+  }
+}
+
 export function Passwords() {
   const navigate = useNavigate();
   const { getToken } = useAuth();
@@ -96,6 +156,11 @@ export function Passwords() {
   >("success");
   const [startingKey, setStartingKey] = useState<string | null>(null);
   const [failedKey, setFailedKey] = useState<string | null>(null);
+  const [trackedJobs, setTrackedJobs] =
+    useState<Record<string, string>>(loadTrackedJobs);
+  const [rowJobs, setRowJobs] = useState<Record<string, BackgroundRotationJob>>(
+    {},
+  );
   const [visiblePasswords, setVisiblePasswords] = useState<
     Record<string, boolean>
   >({});
@@ -111,6 +176,91 @@ export function Passwords() {
         .size,
     [entries],
   );
+
+  useEffect(() => {
+    if (typeof localStorage === "undefined") {
+      return;
+    }
+
+    localStorage.setItem(
+      BACKGROUND_JOB_STORAGE_KEY,
+      JSON.stringify(trackedJobs),
+    );
+  }, [trackedJobs]);
+
+  useEffect(() => {
+    const relevantEntries = entries.filter(
+      (entry) => trackedJobs[entryKey(entry)],
+    );
+    if (relevantEntries.length === 0) {
+      return;
+    }
+
+    let cancelled = false;
+    let timer: number | null = null;
+    const controller = new AbortController();
+
+    const refresh = async () => {
+      const nextEntries = entries.filter(
+        (entry) => trackedJobs[entryKey(entry)],
+      );
+      if (nextEntries.length === 0) {
+        if (!cancelled) {
+          setRowJobs({});
+        }
+        return;
+      }
+
+      const results = await Promise.all(
+        nextEntries.map(async (entry) => {
+          const key = entryKey(entry);
+          const jobId = trackedJobs[key];
+          if (!jobId) {
+            return null;
+          }
+
+          try {
+            const job = await getBackgroundRotationJob(
+              jobId,
+              controller.signal,
+            );
+            return [key, job] as const;
+          } catch {
+            return null;
+          }
+        }),
+      );
+
+      if (cancelled) {
+        return;
+      }
+
+      const nextJobs = Object.fromEntries(
+        results.filter(
+          (result): result is readonly [string, BackgroundRotationJob] =>
+            Boolean(result),
+        ),
+      );
+      setRowJobs(nextJobs);
+
+      const hasActiveJob = Object.values(nextJobs).some(
+        (job) => !isTerminalJob(job.status),
+      );
+      if (hasActiveJob) {
+        timer = globalThis.setTimeout(refresh, 4000);
+      }
+    };
+
+    void refresh();
+
+    return () => {
+      cancelled = true;
+      controller.abort();
+      if (timer !== null) {
+        globalThis.clearTimeout(timer);
+      }
+    };
+  }, [entries, trackedJobs]);
 
   const onFile = async (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -137,8 +287,8 @@ export function Passwords() {
   };
 
   const startBackgroundReset = async (entry: GooglePasswordEntry) => {
-    const entryKey = `${entry.url}-${entry.username}`;
-    setStartingKey(entryKey);
+    const key = entryKey(entry);
+    setStartingKey(key);
     setFailedKey(null);
     setBackgroundNotice(null);
 
@@ -150,13 +300,22 @@ export function Passwords() {
         googleAccessToken,
       });
 
+      setTrackedJobs((prev) => ({
+        ...prev,
+        [key]: job.id,
+      }));
+      setRowJobs((prev) => ({
+        ...prev,
+        [key]: job,
+      }));
+
       setBackgroundNoticeTone("success");
       setBackgroundNotice(
         `Background AI started for ${hostFromUrl(entry.url) || entry.url}. Opening the live job monitor…`,
       );
       navigate(`/app/rotate?job=${job.id}`);
     } catch (err) {
-      setFailedKey(entryKey);
+      setFailedKey(key);
       setBackgroundNoticeTone("error");
       setBackgroundNotice(
         err instanceof Error ? err.message : "Failed to start background AI.",
@@ -243,138 +402,174 @@ export function Passwords() {
               key={`${entry.url}-${entry.username}-${idx}`}
               className="vault-row"
             >
-              <div className="vault-main">
-                <div className="vault-title-group">
-                  <strong>
-                    {entry.name || entry.url || "(unnamed entry)"}
-                  </strong>
-                  <span className="muted vault-host">
-                    {hostFromUrl(entry.url) || "Unknown site"}
-                  </span>
-                </div>
-                <span className="muted vault-username">
-                  {entry.username || "(no username)"}
-                </span>
-              </div>
-              <div className="vault-meta">
-                <a
-                  href={entry.url}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="vault-link"
-                >
-                  {entry.url}
-                </a>
-                <div className="vault-actions">
-                  <a
-                    href={entry.url}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="btn btn-ghost vault-action"
-                  >
-                    Open site
-                  </a>
-                  <Link
-                    to={buildRotatePath(entry)}
-                    className="btn btn-primary vault-action"
-                  >
-                    Reset password
-                  </Link>
-                  <button
-                    type="button"
-                    className="btn btn-ghost vault-action"
-                    onClick={() => void startBackgroundReset(entry)}
-                    disabled={startingKey === `${entry.url}-${entry.username}`}
-                  >
-                    {startingKey === `${entry.url}-${entry.username}`
-                      ? "Starting…"
-                      : "Run in background"}
-                  </button>
-                </div>
-                {failedKey === `${entry.url}-${entry.username}` &&
-                  backgroundNoticeTone === "error" &&
-                  backgroundNotice && (
-                    <p className="error vault-row-feedback">
-                      {backgroundNotice}
-                    </p>
-                  )}
-                <div className="vault-password-field">
-                  <code>
-                    {visiblePasswords[`${entry.url}-${entry.username}-${idx}`]
-                      ? entry.password || "(empty password)"
-                      : "••••••••••••"}
-                  </code>
-                  <button
-                    type="button"
-                    className="vault-password-toggle"
-                    onClick={() => {
-                      const entryKey = `${entry.url}-${entry.username}-${idx}`;
-                      setVisiblePasswords((prev) => ({
-                        ...prev,
-                        [entryKey]: !prev[entryKey],
-                      }));
-                    }}
-                    aria-label={
-                      visiblePasswords[`${entry.url}-${entry.username}-${idx}`]
-                        ? "Hide password"
-                        : "Show password"
-                    }
-                    title={
-                      visiblePasswords[`${entry.url}-${entry.username}-${idx}`]
-                        ? "Hide password"
-                        : "Show password"
-                    }
-                  >
-                    {visiblePasswords[
-                      `${entry.url}-${entry.username}-${idx}`
-                    ] ? (
-                      <svg viewBox="0 0 24 24" aria-hidden="true">
-                        <path
-                          d="M3 3l18 18"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="1.8"
-                          strokeLinecap="round"
-                        />
-                        <path
-                          d="M10.6 10.8a2 2 0 0 0 2.6 2.6"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="1.8"
-                          strokeLinecap="round"
-                        />
-                        <path
-                          d="M9.8 5.3A11 11 0 0 1 12 5c5.3 0 9.3 3.8 10 6.8a1.2 1.2 0 0 1 0 .4A11.1 11.1 0 0 1 17 18.2M6.2 15.3A11.3 11.3 0 0 1 2 12.2a1.2 1.2 0 0 1 0-.4A11.2 11.2 0 0 1 7 5.9"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="1.8"
-                          strokeLinecap="round"
-                        />
-                      </svg>
-                    ) : (
-                      <svg viewBox="0 0 24 24" aria-hidden="true">
-                        <path
-                          d="M2 12c.7-3 4.7-7 10-7s9.3 4 10 7c-.7 3-4.7 7-10 7S2.7 15 2 12Z"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="1.8"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                        />
-                        <circle
-                          cx="12"
-                          cy="12"
-                          r="2.7"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="1.8"
-                        />
-                      </svg>
-                    )}
-                  </button>
-                </div>
-              </div>
-              {entry.note && <p className="muted">Note: {entry.note}</p>}
+              {(() => {
+                const key = entryKey(entry);
+                const rowJob = rowJobs[key];
+                const rowJobId = trackedJobs[key];
+                const rowJobActive = rowJob
+                  ? !isTerminalJob(rowJob.status)
+                  : false;
+
+                return (
+                  <>
+                    <div className="vault-main">
+                      <div className="vault-title-group">
+                        <strong>
+                          {entry.name || entry.url || "(unnamed entry)"}
+                        </strong>
+                        <span className="muted vault-host">
+                          {hostFromUrl(entry.url) || "Unknown site"}
+                        </span>
+                      </div>
+                      <span className="muted vault-username">
+                        {entry.username || "(no username)"}
+                      </span>
+                    </div>
+                    <div className="vault-meta">
+                      <a
+                        href={entry.url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="vault-link"
+                      >
+                        {entry.url}
+                      </a>
+                      <div className="vault-actions">
+                        <a
+                          href={entry.url}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="btn btn-ghost vault-action"
+                        >
+                          Open site
+                        </a>
+                        <Link
+                          to={buildRotatePath(entry)}
+                          className="btn btn-primary vault-action"
+                        >
+                          Reset password
+                        </Link>
+                        <button
+                          type="button"
+                          className="btn btn-ghost vault-action"
+                          onClick={() => void startBackgroundReset(entry)}
+                          disabled={startingKey === key || rowJobActive}
+                        >
+                          {startingKey === key
+                            ? "Starting…"
+                            : rowJobActive
+                              ? "Background running"
+                              : "Run in background"}
+                        </button>
+                      </div>
+                      {rowJob && rowJobId && (
+                        <div className="vault-job-row">
+                          <span
+                            className={`vault-status vault-${rowJob.status}`}
+                          >
+                            {formatRowStatus(rowJob.status)}
+                          </span>
+                          <Link
+                            to={`/app/rotate?job=${rowJobId}`}
+                            className="vault-job-link"
+                          >
+                            View job
+                          </Link>
+                        </div>
+                      )}
+                      {failedKey === key &&
+                        backgroundNoticeTone === "error" &&
+                        backgroundNotice && (
+                          <p className="error vault-row-feedback">
+                            {backgroundNotice}
+                          </p>
+                        )}
+                      <div className="vault-password-field">
+                        <code>
+                          {visiblePasswords[
+                            `${entry.url}-${entry.username}-${idx}`
+                          ]
+                            ? entry.password || "(empty password)"
+                            : "••••••••••••"}
+                        </code>
+                        <button
+                          type="button"
+                          className="vault-password-toggle"
+                          onClick={() => {
+                            const entryKey = `${entry.url}-${entry.username}-${idx}`;
+                            setVisiblePasswords((prev) => ({
+                              ...prev,
+                              [entryKey]: !prev[entryKey],
+                            }));
+                          }}
+                          aria-label={
+                            visiblePasswords[
+                              `${entry.url}-${entry.username}-${idx}`
+                            ]
+                              ? "Hide password"
+                              : "Show password"
+                          }
+                          title={
+                            visiblePasswords[
+                              `${entry.url}-${entry.username}-${idx}`
+                            ]
+                              ? "Hide password"
+                              : "Show password"
+                          }
+                        >
+                          {visiblePasswords[
+                            `${entry.url}-${entry.username}-${idx}`
+                          ] ? (
+                            <svg viewBox="0 0 24 24" aria-hidden="true">
+                              <path
+                                d="M3 3l18 18"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth="1.8"
+                                strokeLinecap="round"
+                              />
+                              <path
+                                d="M10.6 10.8a2 2 0 0 0 2.6 2.6"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth="1.8"
+                                strokeLinecap="round"
+                              />
+                              <path
+                                d="M9.8 5.3A11 11 0 0 1 12 5c5.3 0 9.3 3.8 10 6.8a1.2 1.2 0 0 1 0 .4A11.1 11.1 0 0 1 17 18.2M6.2 15.3A11.3 11.3 0 0 1 2 12.2a1.2 1.2 0 0 1 0-.4A11.2 11.2 0 0 1 7 5.9"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth="1.8"
+                                strokeLinecap="round"
+                              />
+                            </svg>
+                          ) : (
+                            <svg viewBox="0 0 24 24" aria-hidden="true">
+                              <path
+                                d="M2 12c.7-3 4.7-7 10-7s9.3 4 10 7c-.7 3-4.7 7-10 7S2.7 15 2 12Z"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth="1.8"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                              />
+                              <circle
+                                cx="12"
+                                cy="12"
+                                r="2.7"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth="1.8"
+                              />
+                            </svg>
+                          )}
+                        </button>
+                      </div>
+                    </div>
+                    {entry.note && <p className="muted">Note: {entry.note}</p>}
+                  </>
+                );
+              })()}
             </li>
           ))}
         </ul>
