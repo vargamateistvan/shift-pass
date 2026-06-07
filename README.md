@@ -127,7 +127,29 @@ server/                    # Auto-rotate agent backend (Express + Playwright + C
   src/agent/               # Browser session, action executor, agent loop, orchestrator
   src/gmail/               # Reset-email poller + link/code extractor
   src/vault/               # AES-256-GCM encrypted password vault
+
+.github/
+  copilot-instructions.md  # Always-on guidance for AI coding agents
+  skills/ui-design/        # UI/design conventions (tokens, dark theme, a11y)
+  workflows/deploy.yml     # GitHub Pages build & deploy
 ```
+
+## Contributing & AI agents
+
+This repo ships customizations for AI coding agents (e.g. GitHub Copilot):
+
+- [`.github/copilot-instructions.md`](./.github/copilot-instructions.md) —
+  repo-wide conventions: **yarn (never npm)**, the frontend/backend split, ESM
+  `.js` import rule for the server, and the safety constraints the auto-rotate
+  agent must keep (dry-run default, no CAPTCHA/2FA bypass, never log/commit
+  secrets).
+- [`.github/skills/ui-design/`](./.github/skills/ui-design/) — design system
+  rules for any UI work (design tokens, dark-only theme, semantic class names,
+  button variants, accessibility checklist).
+
+Whether you're a human or an agent, follow those when making changes, and verify
+with `yarn lint && yarn build` (frontend) and `yarn --cwd server build`
+(backend).
 
 ## Not included (by design)
 
