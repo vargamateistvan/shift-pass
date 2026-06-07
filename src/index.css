@@ -855,6 +855,11 @@ h2 {
   white-space: nowrap;
 }
 
+.vault-row-feedback {
+  margin: 0;
+  font-size: 0.82rem;
+}
+
 .vault-password-field {
   display: inline-flex;
   align-items: center;

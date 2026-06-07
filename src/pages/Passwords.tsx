@@ -1,5 +1,5 @@
 import { useMemo, useState, type ChangeEvent } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/useAuth";
 import { startBackgroundRotation } from "../api/rotate";
 import { type GooglePasswordEntry } from "../passwords/context";
@@ -86,12 +86,16 @@ function buildRotatePath(entry: GooglePasswordEntry): string {
 }
 
 export function Passwords() {
+  const navigate = useNavigate();
   const { getToken } = useAuth();
   const { entries, fileName, setLoadedCsv } = useLoadedCsv();
   const [error, setError] = useState<string | null>(null);
-  const [backgroundJobId, setBackgroundJobId] = useState<string | null>(null);
   const [backgroundNotice, setBackgroundNotice] = useState<string | null>(null);
+  const [backgroundNoticeTone, setBackgroundNoticeTone] = useState<
+    "success" | "error"
+  >("success");
   const [startingKey, setStartingKey] = useState<string | null>(null);
+  const [failedKey, setFailedKey] = useState<string | null>(null);
   const [visiblePasswords, setVisiblePasswords] = useState<
     Record<string, boolean>
   >({});
@@ -135,6 +139,7 @@ export function Passwords() {
   const startBackgroundReset = async (entry: GooglePasswordEntry) => {
     const entryKey = `${entry.url}-${entry.username}`;
     setStartingKey(entryKey);
+    setFailedKey(null);
     setBackgroundNotice(null);
 
     try {
@@ -145,11 +150,14 @@ export function Passwords() {
         googleAccessToken,
       });
 
-      setBackgroundJobId(job.id);
+      setBackgroundNoticeTone("success");
       setBackgroundNotice(
-        `Background AI started for ${hostFromUrl(entry.url) || entry.url}. Job ${job.id} will keep running on the server.`,
+        `Background AI started for ${hostFromUrl(entry.url) || entry.url}. Opening the live job monitor…`,
       );
+      navigate(`/app/rotate?job=${job.id}`);
     } catch (err) {
+      setFailedKey(entryKey);
+      setBackgroundNoticeTone("error");
       setBackgroundNotice(
         err instanceof Error ? err.message : "Failed to start background AI.",
       );
@@ -219,12 +227,8 @@ export function Passwords() {
         </div>
       </section>
 
-      {backgroundNotice && backgroundJobId && (
-        <p className="success">
-          {backgroundNotice}{" "}
-          <Link to={`/app/rotate?job=${backgroundJobId}`}>Open job status</Link>
-          {"."}
-        </p>
+      {backgroundNotice && (
+        <p className={backgroundNoticeTone}>{backgroundNotice}</p>
       )}
 
       {error && <p className="error">{error}</p>}
@@ -287,6 +291,13 @@ export function Passwords() {
                       : "Run in background"}
                   </button>
                 </div>
+                {failedKey === `${entry.url}-${entry.username}` &&
+                  backgroundNoticeTone === "error" &&
+                  backgroundNotice && (
+                    <p className="error vault-row-feedback">
+                      {backgroundNotice}
+                    </p>
+                  )}
                 <div className="vault-password-field">
                   <code>
                     {visiblePasswords[`${entry.url}-${entry.username}-${idx}`]
