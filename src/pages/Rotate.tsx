@@ -71,6 +71,7 @@ function RotateForm() {
   const [status, setStatus] = useState<Status>("idle");
   const [log, setLog] = useState<LogLine[]>([]);
   const [shot, setShot] = useState<string | null>(null);
+  const [shots, setShots] = useState<string[]>([]);
   const [result, setResult] = useState<{
     site: string;
     password: string;
@@ -149,6 +150,7 @@ function RotateForm() {
         break;
       case "screenshot":
         setShot(ev.dataUrl);
+        setShots((prev) => [...prev, ev.dataUrl]);
         break;
       case "needs_human":
         append({ text: ev.message, tone: "warn" });
@@ -170,6 +172,7 @@ function RotateForm() {
     setStatus("running");
     setLog([]);
     setShot(null);
+    setShots([]);
     setResult(null);
     setCopied(false);
     const controller = new AbortController();
@@ -218,6 +221,10 @@ function RotateForm() {
   const backgroundFailed = backgroundJob?.status === "error";
   const backgroundStatus = backgroundJob?.status ?? "queued";
   const isBackgroundMode = Boolean(backgroundJobId);
+  const backgroundLatestShot =
+    backgroundJob && backgroundJob.screenshots.length > 0
+      ? backgroundJob.screenshots[backgroundJob.screenshots.length - 1]
+      : (backgroundJob?.latestScreenshot ?? null);
   const backgroundSourceLabel =
     backgroundSource === "tracked" || backgroundSource === "fallback"
       ? formatBackgroundSource(backgroundSource)
@@ -269,14 +276,17 @@ function RotateForm() {
                   </span>
                 </div>
               )}
-              {backgroundJob.latestScreenshot && (
+              {backgroundLatestShot && (
                 <div className="rotate-screenshot rotate-background-preview">
                   <img
-                    src={backgroundJob.latestScreenshot}
+                    src={backgroundLatestShot}
                     alt="Background agent browser view"
                   />
                 </div>
               )}
+              <p className="muted rotate-frame-count">
+                Frames captured: {backgroundJob.screenshots.length}
+              </p>
               <ul className="rotate-log rotate-background-log">
                 {backgroundJob.recentEvents.map((event) => (
                   <li
@@ -383,6 +393,9 @@ function RotateForm() {
                   <img src={shot} alt="Agent browser view" />
                 </div>
               )}
+              <p className="muted rotate-frame-count">
+                Frames captured: {shots.length}
+              </p>
               <ul className="rotate-log">
                 {log.map((line) => (
                   <li

@@ -30,6 +30,7 @@ export interface BackgroundRotationJob {
     | "error";
   message: string;
   latestScreenshot: string | null;
+  screenshots: string[];
   terminalSummary: string | null;
   createdAt: string;
   updatedAt: string;

@@ -155,12 +155,22 @@ export class BrowserSession {
 
     // If reset controls are hidden behind a sign-in entry point, open it first.
     if (!clickedReset) {
-      const clickedSignIn = await tryClickCandidates(signInTriggers, "sign-in trigger", 3);
+      const clickedSignIn = await tryClickCandidates(
+        signInTriggers,
+        "sign-in trigger",
+        3,
+      );
       if (clickedSignIn) {
         notes.push("opened sign-in view");
         clickedReset =
-          (await tryClickCandidates(resetByText, "reset trigger after sign-in")) ||
-          (await tryClickCandidates(resetByAria, "reset trigger (aria) after sign-in"));
+          (await tryClickCandidates(
+            resetByText,
+            "reset trigger after sign-in",
+          )) ||
+          (await tryClickCandidates(
+            resetByAria,
+            "reset trigger (aria) after sign-in",
+          ));
       }
     }
 
