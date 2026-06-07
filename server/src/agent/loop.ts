@@ -34,12 +34,34 @@ function errorMessage(err: unknown): string {
 function isRetryableGeminiError(err: unknown): boolean {
   const msg = errorMessage(err).toLowerCase();
   return (
+    msg.includes("429") ||
+    msg.includes("resource_exhausted") ||
+    msg.includes("rate limit") ||
+    msg.includes("quota") ||
     msg.includes("fetch failed") ||
     msg.includes("econnreset") ||
     msg.includes("etimedout") ||
     msg.includes("enotfound") ||
     msg.includes("network")
   );
+}
+
+function isQuotaExhaustedError(err: unknown): boolean {
+  const msg = errorMessage(err).toLowerCase();
+  return (
+    msg.includes("resource_exhausted") ||
+    msg.includes("quota exceeded") ||
+    msg.includes("limit: 0")
+  );
+}
+
+function parseRetryDelayMs(err: unknown): number | undefined {
+  const msg = errorMessage(err);
+  const match = msg.match(/retry\s+in\s+([0-9]+(?:\.[0-9]+)?)s/i);
+  if (!match) return undefined;
+  const seconds = Number(match[1]);
+  if (!Number.isFinite(seconds) || seconds <= 0) return undefined;
+  return Math.ceil(seconds * 1000);
 }
 
 function mapGeminiError(err: unknown): Error {
@@ -55,47 +77,83 @@ function mapGeminiError(err: unknown): Error {
 async function generateGeminiStep(
   client: GoogleGenAI,
   model: string,
+  fallbackModel: string | undefined,
   planPrompt: string,
   imageBase64: string,
 ): Promise<GeminiResponse> {
+  const models = [model, fallbackModel]
+    .filter((m): m is string => Boolean(m && m.trim()))
+    .filter((m, idx, arr) => arr.indexOf(m) === idx);
+
   let lastError: unknown;
 
-  for (let attempt = 1; attempt <= 3; attempt += 1) {
-    try {
-      const rawResp = await client.models.generateContent({
-        model,
-        contents: [
-          {
-            role: "user",
-            parts: [
-              { text: planPrompt },
-              {
-                inlineData: {
-                  mimeType: "image/png",
-                  data: imageBase64,
+  for (const currentModel of models) {
+    for (let attempt = 1; attempt <= 3; attempt += 1) {
+      try {
+        const rawResp = await client.models.generateContent({
+          model: currentModel,
+          contents: [
+            {
+              role: "user",
+              parts: [
+                { text: planPrompt },
+                {
+                  inlineData: {
+                    mimeType: "image/png",
+                    data: imageBase64,
+                  },
                 },
-              },
-            ],
+              ],
+            },
+          ],
+          config: {
+            systemInstruction: SYSTEM,
+            tools: geminiTools,
+            temperature: 0.1,
           },
-        ],
-        config: {
-          systemInstruction: SYSTEM,
-          tools: geminiTools,
-          temperature: 0.1,
-        },
-      } as never);
+        } as never);
 
-      return rawResp as unknown as GeminiResponse;
-    } catch (err) {
-      lastError = err;
-      if (!isRetryableGeminiError(err) || attempt === 3) {
-        throw mapGeminiError(err);
+        if (currentModel !== model) {
+          log.warn("gemini model fallback in use", {
+            primaryModel: model,
+            fallbackModel: currentModel,
+          });
+        }
+
+        return rawResp as unknown as GeminiResponse;
+      } catch (err) {
+        lastError = err;
+
+        const retryDelayMs = parseRetryDelayMs(err) ?? 250 * attempt;
+        const quotaExhausted = isQuotaExhaustedError(err);
+        const retryable = isRetryableGeminiError(err);
+
+        const canFallback =
+          quotaExhausted &&
+          currentModel === model &&
+          Boolean(fallbackModel) &&
+          fallbackModel !== model;
+        if (canFallback) {
+          log.warn("gemini quota exhausted on primary model", {
+            primaryModel: model,
+            fallbackModel,
+            message: previewText(errorMessage(err), 160),
+          });
+          break;
+        }
+
+        if (!retryable || attempt === 3) {
+          throw mapGeminiError(err);
+        }
+
+        log.warn("gemini request retry", {
+          model: currentModel,
+          attempt,
+          retryDelayMs,
+          message: previewText(errorMessage(err), 160),
+        });
+        await sleep(retryDelayMs);
       }
-      log.warn("gemini request retry", {
-        attempt,
-        message: previewText(errorMessage(err), 160),
-      });
-      await sleep(250 * attempt);
     }
   }
 
@@ -152,6 +210,7 @@ export async function runAgentGoal(
     const resp = await generateGeminiStep(
       client,
       config.geminiModel,
+      config.geminiFallbackModel,
       planPrompt,
       obs.imageBase64,
     );
