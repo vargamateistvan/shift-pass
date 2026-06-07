@@ -78,4 +78,4 @@ See [patterns.md](./references/patterns.md) for copy-paste snippets (button, for
 1. Build markup with semantic elements and existing class names; reuse `.btn`, `.content`, `.message-*`, etc.
 2. If new styles are needed, add a semantic class to `src/index.css` using tokens — check no existing class fits first.
 3. Run the a11y checklist above.
-4. Verify with `npm run lint` and `npm run build`.
+4. Verify with `yarn lint` and `yarn build`.

@@ -34,9 +34,9 @@ Progress (phases, steps, live screenshots) streams to the UI over SSE.
 See [`server/README.md`](./server/README.md) for full setup. Quick start:
 
 ```bash
-npm run server:install   # installs backend deps + Chromium
+yarn server:install   # installs backend deps + Chromium
 cp server/.env.example server/.env   # set ANTHROPIC_API_KEY and VAULT_KEY
-npm run server           # backend on :8787 (the SPA proxies /api to it)
+yarn server           # backend on :8787 (the SPA proxies /api to it)
 ```
 
 ## Security model
@@ -90,7 +90,7 @@ Open http://localhost:5173 and click **Sign in with Google**.
 - `yarn build` — type-check, build for production, and emit a `404.html` SPA fallback
 - `yarn preview` — preview the production build
 - `yarn lint` — run ESLint
-- `npm run server` — start the auto-rotate backend (see `server/README.md`)
+- `yarn server` — start the auto-rotate backend (see `server/README.md`)
 
 ## Deployment (GitHub Pages)
 

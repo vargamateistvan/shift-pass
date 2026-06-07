@@ -13,7 +13,7 @@ in an encrypted vault.
 
 ```bash
 cd server
-npm install            # also downloads Chromium for Playwright
+yarn                   # also downloads Chromium for Playwright
 cp .env.example .env   # then fill in the values below
 ```
 
@@ -37,12 +37,12 @@ node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 ## Run
 
 ```bash
-npm run dev      # tsx watch on http://localhost:8787
+yarn dev         # tsx watch on http://localhost:8787
 # or
-npm run build && npm start
+yarn build && yarn start
 ```
 
-From the repo root you can also run `npm run server`.
+From the repo root you can also run `yarn server`.
 
 ## API
 
@@ -72,7 +72,7 @@ From the repo root you can also run `npm run server`.
 
 ## Manual end-to-end test
 
-1. Start the backend (`npm run server`) and the SPA (`npm run dev`).
+1. Start the backend (`yarn server`) and the SPA (`yarn dev`).
 2. Sign in with Google in the SPA, open **Rotate**.
 3. Enter a test site you control + the account email, click **Rotate**.
 4. Watch the live agent log and screenshots; with `DRY_RUN=true` the new

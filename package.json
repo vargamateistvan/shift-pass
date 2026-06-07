@@ -8,8 +8,8 @@
     "build": "tsc -b && vite build && cp dist/index.html dist/404.html",
     "lint": "eslint .",
     "preview": "vite preview",
-    "server": "npm --prefix server run dev",
-    "server:install": "npm --prefix server install"
+    "server": "yarn --cwd server dev",
+    "server:install": "yarn --cwd server install"
   },
   "dependencies": {
     "@react-oauth/google": "^0.13.5",
