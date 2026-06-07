@@ -12,6 +12,8 @@ import { useLoadedCsv } from "../passwords/useLoadedCsv";
 
 const BACKGROUND_JOB_STORAGE_KEY = "shiftpass.passwordRowJobs";
 const STALE_TRACKED_JOB_FAILURE_LIMIT = 2;
+const BACKGROUND_REFRESH_FAST_MS = 4000;
+const BACKGROUND_REFRESH_SLOW_MS = 12000;
 
 function parseCsvRow(line: string): string[] {
   const out: string[] = [];
@@ -388,13 +390,26 @@ export function Passwords() {
         }
       }
 
-      const fallbackResult = await listBackgroundRotationJobsDetailed(
-        {
-          activeOnly: true,
-          hosts: [...entryGroups.keys()],
-        },
-        controller.signal,
-      );
+      const fallbackResult =
+        entryGroups.size > 0
+          ? await listBackgroundRotationJobsDetailed(
+              {
+                activeOnly: true,
+                hosts: [...entryGroups.keys()],
+              },
+              controller.signal,
+            )
+          : {
+              jobs: [],
+              meta: {
+                requestedLimit: null,
+                appliedLimit: 0,
+                matchedCount: 0,
+                returnedCount: 0,
+                truncated: false,
+                defaultLimitApplied: true,
+              },
+            };
 
       if (cancelled) {
         return;
@@ -438,8 +453,16 @@ export function Passwords() {
       const hasActiveJob = Object.values(nextJobs).some(
         (job) => !isTerminalJob(job.status),
       );
-      if (hasActiveJob || graceTrackedKeys.size > 0) {
-        timer = globalThis.setTimeout(refresh, 4000);
+      const shouldContinuePolling =
+        hasActiveJob ||
+        graceTrackedKeys.size > 0 ||
+        fallbackResult.meta.truncated;
+      const refreshDelay = fallbackResult.meta.truncated
+        ? BACKGROUND_REFRESH_SLOW_MS
+        : BACKGROUND_REFRESH_FAST_MS;
+
+      if (shouldContinuePolling) {
+        timer = globalThis.setTimeout(refresh, refreshDelay);
       }
     };
 
